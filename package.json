@@ -1,0 +1,41 @@
+{
+  "name": "hearttwin-lab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev --port ${PORT:-3001}",
+    "dev:full": "bash -lc 'set -e; API_PORT=\"${API_PORT:-8001}\"; FRONTEND_PORT=\"${PORT:-3001}\"; python -m uvicorn python.hearttwin.api:app --host 127.0.0.1 --port \"$API_PORT\" & api_pid=$!; cleanup(){ kill \"$api_pid\" 2>/dev/null || true; }; trap cleanup EXIT INT TERM; NUXT_PUBLIC_API_BASE=\"http://localhost:${API_PORT}/api/v1\" nuxt dev --port \"$FRONTEND_PORT\"'",
+    "dev:vercel": "vercel dev --listen 3001",
+    "dev:nuxt": "nuxt dev --port ${PORT:-3001}",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck",
+    "test:py": "python -m pytest python/hearttwin/tests",
+    "check": "pnpm typecheck && pnpm lint && pnpm test:py"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^0.11.3",
+    "@tresjs/core": "^5.8.1",
+    "@tresjs/nuxt": "^5.6.1",
+    "@vueuse/core": "^14.3.0",
+    "@vueuse/nuxt": "^14.3.0",
+    "nuxt": "^4.4.7",
+    "pinia": "^3.0.4",
+    "plotly.js-dist-min": "^2.35.2",
+    "three": "^0.170.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.15.2",
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "@types/node": "^22.0.0",
+    "@types/three": "^0.170.0",
+    "autoprefixer": "^10.4.20",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vercel": "^54.9.1"
+  }
+}

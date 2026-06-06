@@ -1,0 +1,42 @@
+{
+  "_description": "Physiologically plausible parameter bounds. Values outside these ranges are rejected as impossible states.",
+  "measurements": {
+    "heart_rate_bpm": { "min": 20, "max": 280, "unit": "bpm" },
+    "systolic_bp_mmhg": { "min": 50, "max": 260, "unit": "mmHg" },
+    "diastolic_bp_mmhg": { "min": 20, "max": 160, "unit": "mmHg" },
+    "edv_ml": { "min": 30, "max": 400, "unit": "mL" },
+    "esv_ml": { "min": 5, "max": 350, "unit": "mL" },
+    "ejection_fraction_pct": { "min": 5, "max": 90, "unit": "%" },
+    "stroke_volume_ml": { "min": 10, "max": 250, "unit": "mL" },
+    "cardiac_output_l_min": { "min": 0.5, "max": 40.0, "unit": "L/min" },
+    "troponin_ng_l": { "min": 0, "max": 50000, "unit": "ng/L" },
+    "bnp_pg_ml": { "min": 0, "max": 50000, "unit": "pg/mL" },
+    "oxygen_saturation_pct": { "min": 50, "max": 100, "unit": "%" },
+    "rr_interval_ms": { "min": 214, "max": 3000, "unit": "ms" },
+    "qrs_duration_ms": { "min": 40, "max": 300, "unit": "ms" },
+    "qt_interval_ms": { "min": 200, "max": 700, "unit": "ms" },
+    "qtc_ms": { "min": 200, "max": 700, "unit": "ms" }
+  },
+  "indices": {
+    "preload_index": { "min": 0.0, "max": 1.5 },
+    "afterload_index": { "min": 0.0, "max": 2.0 },
+    "contractility_index": { "min": 0.0, "max": 1.5 },
+    "arterial_compliance_index": { "min": 0.0, "max": 2.0 },
+    "systemic_vascular_resistance_index": { "min": 0.0, "max": 2.0 },
+    "filling_pressure_index": { "min": 0.0, "max": 1.5 },
+    "pv_loop_area_index": { "min": 0.0, "max": 2.0 },
+    "scar_fraction": { "min": 0.0, "max": 0.6 },
+    "inflammation_index": { "min": 0.0, "max": 1.5 },
+    "oxygen_delivery_index": { "min": 0.0, "max": 1.5 },
+    "myocardial_oxygen_demand_index": { "min": 0.0, "max": 2.0 },
+    "stiffness_index": { "min": 0.0, "max": 2.0 },
+    "remodeling_index": { "min": 0.0, "max": 1.5 },
+    "arrhythmia_instability_score": { "min": 0.0, "max": 1.0 },
+    "conduction_delay_score": { "min": 0.0, "max": 1.0 }
+  },
+  "derived_constraints": {
+    "esv_must_be_less_than_edv": true,
+    "diastolic_must_be_less_than_systolic": true,
+    "ef_from_volumes_tolerance_pct": 5.0
+  }
+}

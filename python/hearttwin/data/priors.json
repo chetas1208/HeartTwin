@@ -1,0 +1,35 @@
+{
+  "_description": "Population-level cardiac priors used when patient data is unavailable. All values are source: default_model_prior.",
+  "_source": "Derived from population-level published ranges (not patient-specific). Educational use only.",
+  "adult_typical": {
+    "heart_rate_bpm": { "value": 70, "unit": "bpm", "confidence": 0.5 },
+    "systolic_bp_mmhg": { "value": 120, "unit": "mmHg", "confidence": 0.5 },
+    "diastolic_bp_mmhg": { "value": 80, "unit": "mmHg", "confidence": 0.5 },
+    "edv_ml": { "value": 130, "unit": "mL", "confidence": 0.4 },
+    "esv_ml": { "value": 50, "unit": "mL", "confidence": 0.4 },
+    "ejection_fraction_pct": { "value": 60, "unit": "%", "confidence": 0.4 },
+    "stroke_volume_ml": { "value": 80, "unit": "mL", "confidence": 0.4 },
+    "cardiac_output_l_min": { "value": 5.0, "unit": "L/min", "confidence": 0.4 },
+    "oxygen_saturation_pct": { "value": 98, "unit": "%", "confidence": 0.5 },
+    "rr_interval_ms": { "value": 857, "unit": "ms", "confidence": 0.5 },
+    "qrs_duration_ms": { "value": 90, "unit": "ms", "confidence": 0.5 },
+    "qt_interval_ms": { "value": 400, "unit": "ms", "confidence": 0.5 },
+    "qtc_ms": { "value": 420, "unit": "ms", "confidence": 0.4 }
+  },
+  "tissue_defaults": {
+    "scar_fraction": { "value": 0.0, "unit": "fraction", "confidence": 0.3 },
+    "inflammation_index": { "value": 0.1, "unit": "index", "confidence": 0.3 },
+    "oxygen_delivery_index": { "value": 0.85, "unit": "index", "confidence": 0.3 },
+    "myocardial_oxygen_demand_index": { "value": 0.6, "unit": "index", "confidence": 0.3 },
+    "stiffness_index": { "value": 0.3, "unit": "index", "confidence": 0.3 },
+    "remodeling_index": { "value": 0.1, "unit": "index", "confidence": 0.3 }
+  },
+  "hemodynamic_indices": {
+    "preload_index": { "value": 0.55, "unit": "index", "confidence": 0.35 },
+    "afterload_index": { "value": 0.5, "unit": "index", "confidence": 0.35 },
+    "contractility_index": { "value": 0.65, "unit": "index", "confidence": 0.35 },
+    "arterial_compliance_index": { "value": 0.7, "unit": "index", "confidence": 0.35 },
+    "systemic_vascular_resistance_index": { "value": 0.55, "unit": "index", "confidence": 0.35 },
+    "filling_pressure_index": { "value": 0.4, "unit": "index", "confidence": 0.35 }
+  }
+}

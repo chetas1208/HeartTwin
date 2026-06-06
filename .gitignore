@@ -1,0 +1,55 @@
+# Node
+node_modules/
+.nuxt/
+.output/
+dist/
+.vercel/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Uploads (never commit patient data)
+uploads/
+*.pdf
+*.dcm
+*.nii
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI tooling (not committed)
+.cursor/
+.claude/
+.copilot/
+
+# Logs
+*.log
+logs/
+
+# Lock files (keep pnpm-lock.yaml, skip others)
+package-lock.json
+yarn.lock
+next.md
+.vercel
