@@ -1,5 +1,21 @@
 # HeartTwin Lab — WeaveHacks 4 Planning
 
+> **⚠️ Read [`../AGENTS.md`](../AGENTS.md) + [`TASKS.md`](./TASKS.md) first — they are
+> the authoritative, research-verified plan (Jun 6).** This file is strategic
+> context. Three facts below are now **corrected**; where they conflict, AGENTS.md
+> §4 wins:
+> - **Weave is NOT actually wired.** `weave_trace.py`'s `publish()` is a no-op
+>   (calls a non-existent `client.publish()`) — it only writes local JSON. Real
+>   `weave.init()` + `@weave.op` instrumentation is a build task (WS-A), and Weave
+>   is **mandatory for prize eligibility**.
+> - **No native Redis vector search.** Upstash Redis has **no `FT.SEARCH`/KNN** and
+>   Upstash Vector is unavailable to us — use **brute-force cosine KNN** over
+>   base64-float32 vectors in a Hash (§4 of this file is right; ignore the
+>   "Upstash Vector / RediSearch `FT.SEARCH`" suggestion).
+> - **CopilotKit path is decided:** migrate the frontend to **Next.js/React under
+>   `web/`** (the §5 A/B question is resolved — full React migration, not a Vue
+>   island). Backend deploys to **HF Spaces**, frontend to **Vercel**.
+
 Two shared mental models for the team: **(1)** where the project is today, and
 **(2)** what to build with the provided hackathon tools. Both are also captured
 as Excalidraw diagrams under [`docs/diagrams/`](./diagrams) — open the
