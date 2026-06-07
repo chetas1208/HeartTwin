@@ -33,7 +33,6 @@ import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { uploadFile, ApiRequestError } from "@/lib/api";
 import { useHeartTwinStore, type PipelineStatus } from "@/lib/store";
 import { VITAL_BOUNDS, validateUserVitals, safeParseFloat } from "@/lib/validators";
-import { SAFETY_DISCLAIMER } from "@/components/safety/SafetyBanner";
 import type { UploadedFile } from "@/types/api";
 
 // ---------------------------------------------------------------------------
@@ -618,12 +617,6 @@ export function CaseIntakePanel() {
             </span>
           </p>
         ) : null}
-
-        {/* Mandatory safety note (stays visible above the run action) ------ */}
-        <p className="flex items-start gap-2 rounded-[var(--ht-r-sm)] border border-[var(--ht-warn-line)] bg-[var(--ht-warn-soft)] px-2.5 py-2 text-[0.72rem] leading-snug text-ink-2">
-          <WarningCircle weight="fill" aria-hidden className="mt-px size-3.5 flex-none text-warn" />
-          {SAFETY_DISCLAIMER}
-        </p>
 
         {/* Run action ------------------------------------------------------ */}
         <div className="flex flex-col gap-2">

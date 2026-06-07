@@ -296,7 +296,7 @@ def test_required_phrase_present_in_frontend() -> None:
     # The safety banner / landing copy must carry the educational-simulation
     # boundary (not a medical device, no diagnosis, no treatment).
     candidates = [
-        _ROOT / "web" / "components" / "safety" / "SafetyBanner.tsx",
+        _ROOT / "web" / "components" / "safety" / "DisclaimerModal.tsx",
         _ROOT / "web" / "app" / "page.tsx",
     ]
     joined = "\n".join(p.read_text(errors="ignore") for p in candidates if p.is_file()).lower()

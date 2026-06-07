@@ -2,10 +2,11 @@
 
 /*
  * CONTRACT: owns the console chrome and the responsive panel grid. Renders the
- *   header (brand lockup + live pipeline status + Weave slot), the mandatory
- *   SafetyBanner, the main grid composing every domain panel, the CopilotDock,
- *   and the footer. Also bootstraps cross-cutting wiring: the SSE trace stream
- *   (useTraceStream) and the initial Redis status snapshot.
+ *   header (brand lockup + live pipeline status + Weave slot), the main grid
+ *   composing every domain panel, the CopilotDock, the footer, and the
+ *   first-open DisclaimerModal (the mandatory safety boundary now lives there,
+ *   not in a persistent banner). Also bootstraps cross-cutting wiring: the SSE
+ *   trace stream (useTraceStream) and the initial Redis status snapshot.
  * READS from store: caseId, status, redisStats (and wires the trace stream).
  * This is the foundation's layout. Sibling agents edit the individual panel
  *   files, NOT this grid. If a panel needs more or less space, coordinate here.
@@ -16,7 +17,7 @@ import { Heartbeat } from "@phosphor-icons/react";
 import { useHeartTwinStore, type PipelineStatus } from "@/lib/store";
 import { redisStats } from "@/lib/api";
 import { useTraceStream } from "@/hooks/useTraceStream";
-import { SafetyBanner } from "@/components/safety/SafetyBanner";
+import { DisclaimerModal } from "@/components/safety/DisclaimerModal";
 import { WeaveBadge } from "@/components/eval/WeaveBadge";
 import { CaseIntakePanel } from "@/components/intake/CaseIntakePanel";
 import { AgentTraceTimeline } from "@/components/trace/AgentTraceTimeline";
@@ -85,14 +86,9 @@ export function AppShell() {
             >
               <Heartbeat weight="fill" className="size-5" />
             </span>
-            <div className="flex flex-col leading-none">
-              <span className="text-[0.95rem] font-semibold tracking-tight text-ink">
-                HeartTwin Lab
-              </span>
-              <span className="ht-mono text-[0.66rem] text-muted">
-                multi-agent cardiac twin
-              </span>
-            </div>
+            <span className="text-[0.95rem] font-semibold tracking-tight text-ink">
+              HeartTwin Lab
+            </span>
           </div>
 
           <div className="ml-auto flex items-center gap-2.5">
@@ -107,8 +103,6 @@ export function AppShell() {
           </div>
         </div>
       </header>
-
-      <SafetyBanner />
 
       <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-5 sm:px-6">
         <div className="grid grid-cols-12 gap-4">
@@ -133,16 +127,14 @@ export function AppShell() {
       </main>
 
       <footer className="border-t border-[var(--ht-line)]">
-        <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-1 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="ht-mono text-[0.68rem] text-muted">
-            WeaveHacks 4 · CopilotKit · Weave · Redis
-          </p>
+        <div className="mx-auto w-full max-w-[1480px] px-4 py-3 sm:px-6">
           <p className="text-[0.68rem] text-faint">
             Simulated educational estimates. Not a medical device.
           </p>
         </div>
       </footer>
 
+      <DisclaimerModal />
       <ErrorBoundary name="Cardiology Copilot"><CopilotDock /></ErrorBoundary>
     </div>
   );
