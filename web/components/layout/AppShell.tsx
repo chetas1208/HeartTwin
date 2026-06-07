@@ -73,7 +73,7 @@ export function AppShell() {
   }, [setRedisStats]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="flex min-h-[100dvh] flex-col lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden">
       <header
         className="sticky top-0 border-b border-[var(--ht-line)] bg-[color-mix(in_oklab,var(--ht-bg)_82%,transparent)] backdrop-blur-md"
         style={{ zIndex: "var(--ht-z-sticky)" }}
@@ -104,24 +104,36 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-5 sm:px-6">
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left column: intake + observability rails */}
-          <div className="col-span-12 flex flex-col gap-4 lg:col-span-4">
-            <ErrorBoundary name="Case intake"><CaseIntakePanel /></ErrorBoundary>
-            <ErrorBoundary name="Agent trace"><AgentTraceTimeline /></ErrorBoundary>
+      <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-4 sm:px-6 lg:min-h-0 lg:overflow-hidden">
+        <div className="grid grid-cols-12 gap-3 lg:h-full lg:min-h-0">
+          {/* Left column: intake + agent trace */}
+          <div className="col-span-12 flex flex-col gap-3 lg:col-span-4 lg:min-h-0">
+            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
+              <ErrorBoundary name="Case intake"><CaseIntakePanel /></ErrorBoundary>
+            </div>
+            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
+              <ErrorBoundary name="Agent trace"><AgentTraceTimeline /></ErrorBoundary>
+            </div>
           </div>
 
           {/* Center column: the simulation work surface */}
-          <div className="col-span-12 flex flex-col gap-4 lg:col-span-5">
-            <ErrorBoundary name="Cardiac viewport"><HeartScene /></ErrorBoundary>
-            <ErrorBoundary name="Simulation charts"><SimulationCharts /></ErrorBoundary>
+          <div className="col-span-12 flex flex-col gap-3 lg:col-span-5 lg:min-h-0">
+            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
+              <ErrorBoundary name="Cardiac viewport"><HeartScene /></ErrorBoundary>
+            </div>
+            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
+              <ErrorBoundary name="Simulation charts"><SimulationCharts /></ErrorBoundary>
+            </div>
           </div>
 
-          {/* Right column: quality + memory telemetry */}
-          <div className="col-span-12 flex flex-col gap-4 lg:col-span-3">
-            <ErrorBoundary name="Evaluation"><EvalScorecard /></ErrorBoundary>
-            <ErrorBoundary name="Redis case memory"><RedisStatsRail /></ErrorBoundary>
+          {/* Right column: evaluation + case memory */}
+          <div className="col-span-12 flex flex-col gap-3 lg:col-span-3 lg:min-h-0">
+            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
+              <ErrorBoundary name="Evaluation"><EvalScorecard /></ErrorBoundary>
+            </div>
+            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
+              <ErrorBoundary name="Redis case memory"><RedisStatsRail /></ErrorBoundary>
+            </div>
           </div>
         </div>
       </main>

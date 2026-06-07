@@ -30,7 +30,7 @@ export function Panel({
 }) {
   return (
     <section
-      className={`flex min-h-0 flex-col ${raised ? "ht-panel-raised" : "ht-panel"} ${className}`}
+      className={`flex min-h-0 flex-col overflow-hidden ${raised ? "ht-panel-raised" : "ht-panel"} ${className}`}
     >
       {children}
     </section>
@@ -80,7 +80,9 @@ export function PanelBody({
   className?: string;
 }) {
   return (
-    <div className={`min-h-0 flex-1 px-4 pb-4 ${className}`}>{children}</div>
+    <div className={`min-h-0 flex-1 overflow-y-auto px-4 pb-4 ${className}`}>
+      {children}
+    </div>
   );
 }
 
