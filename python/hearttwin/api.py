@@ -58,6 +58,7 @@ from python.hearttwin.tools.model_config import (
     get_evaluator_model,
 )
 from python.hearttwin.tools.weave_trace import get_latest_run, get_traces, weave_status
+from python.hearttwin.tools.cardiac_findings import derive_findings
 
 app = FastAPI(
     title="HeartTwin Lab API",
@@ -718,6 +719,13 @@ async def operate(case_id: str, request: OperateRequest) -> dict:
         case.state.simulation_config.operating = request.operating_environment
 
     stage_responses, viz_payload, eval_report = await run_operation_pipeline(case=case)
+
+    # Localize the simulated state to anatomy (AHA 17-segment + coronary
+    # territory) as educational, code-tagged findings for the 3D heart view.
+    if isinstance(viz_payload, dict):
+        viz_payload["cardiac_findings"] = derive_findings(
+            case.state.model_dump() if case.state else None, viz_payload
+        )
 
     await store_case(case_id, case.model_dump(mode="json"))
     latest = get_latest_run(case_id)
