@@ -9,6 +9,7 @@ import uuid
 from typing import Any, Optional
 
 from python.hearttwin.safety import redact_pii
+from python.hearttwin.tools.env_config import DEFAULT_WANDB_PROJECT, weave_enabled
 
 _LOCAL_TRACES: dict[str, list[dict[str, Any]]] = {}
 _LOCAL_RUNS: dict[str, dict[str, Any]] = {}
@@ -147,7 +148,7 @@ class TraceSink:
         return {
             "enabled": enabled,
             "status": status,
-            "project": os.environ.get("WANDB_PROJECT", "hearttwin-lab"),
+            "project": os.environ.get("WANDB_PROJECT", DEFAULT_WANDB_PROJECT),
             "project_url": get_project_url(),
             "run_id": run_id,
             "run_url": get_run_url(run_id),
@@ -250,7 +251,7 @@ def get_project_url() -> str | None:
     if explicit:
         return explicit
     entity = os.environ.get("WANDB_ENTITY")
-    project = os.environ.get("WANDB_PROJECT", "hearttwin-lab")
+    project = os.environ.get("WANDB_PROJECT", DEFAULT_WANDB_PROJECT)
     if entity and project:
         return f"https://wandb.ai/{entity}/{project}/weave"
     return None
@@ -271,9 +272,11 @@ def _init_weave() -> bool:
     global _WEAVE_CLIENT, _WEAVE_INITIALIZED
     if _WEAVE_INITIALIZED:
         return True
+    if not weave_enabled():
+        return False
     if not os.environ.get("WANDB_API_KEY"):
         return False
-    project = os.environ.get("WANDB_PROJECT", "hearttwin-lab")
+    project = os.environ.get("WANDB_PROJECT", DEFAULT_WANDB_PROJECT)
     try:
         import weave
 

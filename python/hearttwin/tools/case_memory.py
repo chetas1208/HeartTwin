@@ -30,6 +30,8 @@ import os
 import statistics
 from typing import Any, Optional
 
+from python.hearttwin.tools.env_config import redis_memory_enabled
+
 # In-memory fallback store (module-level, like tools/storage.py).
 _MEMORY_INDEX: dict[str, dict[str, Any]] = {}
 
@@ -156,6 +158,8 @@ def suggest_priors_from_neighbors(
 
 
 def _redis_config() -> Optional[tuple[str, str]]:
+    if not redis_memory_enabled():
+        return None
     url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
     token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
     if url and token:

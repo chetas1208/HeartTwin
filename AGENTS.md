@@ -163,8 +163,8 @@ beating 3D heart and bounded recovery scenarios."*
 - **Frontend Next.js → Vercel**, **Root Directory = `web`** (no `vercel.json`
   needed). The CopilotKit Node route stays on Vercel.
 - **Secrets placement:** `OPENAI_API_KEY`, `WANDB_*`, `UPSTASH_*` live on the
-  **backend host**. On Vercel set `NEXT_PUBLIC_API_BASE` (backend URL) — note the
-  rename from the old `NUXT_PUBLIC_*`. FastAPI **CORS** must allow the Vercel domain
+  **backend host**. On Vercel set `NUXT_PUBLIC_API_BASE` (backend URL);
+  `NEXT_PUBLIC_API_BASE` is backward-compatible fallback only. FastAPI **CORS** must allow the Vercel domain
   (incl. `*.vercel.app` preview) — `api.py` already uses permissive CORS; tighten if
   needed.
 

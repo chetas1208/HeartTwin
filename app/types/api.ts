@@ -46,6 +46,8 @@ export interface SimulateRecoveryRequest {
 export interface HealthResponse {
   status: string
   service: string
+  disclaimer?: string
+  environment?: Record<string, unknown>
 }
 
 export interface ApiError {

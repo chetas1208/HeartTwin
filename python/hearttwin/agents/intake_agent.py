@@ -20,13 +20,13 @@ from pydantic import BaseModel, Field
 
 from python.hearttwin.safety import CORE_SAFETY_PHRASE, DISCLAIMER
 from python.hearttwin.schemas import AgentResponse, AgentStatus, CaseRecord, UploadedFile
+from python.hearttwin.tools.model_config import get_intake_model
 from python.hearttwin.tools.weave_trace import TraceContext
 
 _INTAKE_AGENT_ID = "intake_safety"
 _INTAKE_AGENT_NAME = "Intake & Safety Agent"
 _LEGACY_AGENT_NAME = "intake_safety_agent"
 _INTAKE_TRACE_TOOL = "hearttwin.intake_safety"
-_DEFAULT_INTAKE_MODEL = "gpt-5.4-mini"
 
 _INTENT_CLASSES = {
     "educational_simulation",
@@ -144,7 +144,7 @@ async def run_intake_agent(
     model_used: str | None = None
     model_decision: IntentDecision | None = None
     if rule_decision.safety_level != "blocked" and os.environ.get("OPENAI_API_KEY"):
-        model_name = _get_intake_model()
+        model_name = get_intake_model()
         model_decision, model_warning = await _classify_intent_with_openai(redacted_text, model_name)
         tools_called.append("openai_intent_classifier")
         if model_warning:
@@ -253,10 +253,6 @@ async def run_intake_agent(
     )
 
     return response, case
-
-
-def _get_intake_model() -> str:
-    return os.environ.get("OPENAI_MODEL_INTAKE") or _DEFAULT_INTAKE_MODEL
 
 
 async def _classify_intent_with_openai(

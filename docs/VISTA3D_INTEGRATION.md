@@ -212,12 +212,13 @@ whole-body CT and read `output_label_names`, or check the upstream VISTA-3D bund
 ### Configuration (env-driven — see `.env.example`, README §Environment variables)
 Add, **without committing real values**:
 ```
-VISTA3D_BASE_URL=            # full origin, e.g. https://<tunnel>.trycloudflare.com   (rotates!)
-VISTA3D_ENDPOINT_SECRET=     # the v3d_… capability token
-VISTA3D_TIMEOUT_S=120        # per-request timeout
+VISTA3D_API_BASE=            # full origin, e.g. https://<tunnel>.trycloudflare.com
+VISTA3D_API_KEY=             # endpoint capability token or API key
+VISTA3D_TIMEOUT_SECONDS=120  # per-request timeout
+VISTA3D_ENABLED=false        # disabled by default; app must still run
 ```
-Compose the prefix at runtime: `f"{VISTA3D_BASE_URL}/x/{VISTA3D_ENDPOINT_SECRET}"`. Because the origin
-rotates, make it reconfigurable and **probe `/health` on startup**; degrade gracefully (HeartTwin already
+Use `VISTA3D_API_BASE` at runtime and pass `VISTA3D_API_KEY` as the endpoint credential. Because local/tunnel
+origins can rotate, make it reconfigurable and **probe `/health` on startup**; degrade gracefully (HeartTwin already
 runs on deterministic fallbacks when an optional service is absent — keep that contract).
 
 ### Where it fits the pipeline
@@ -261,18 +262,19 @@ Avoid blocking a single serverless invocation on the full segmentation when volu
 
 ### curl — full automatic run
 ```bash
-BASE="$VISTA3D_BASE_URL/x/$VISTA3D_ENDPOINT_SECRET"
+BASE="$VISTA3D_API_BASE"
 # 1) health
-curl -sS "$BASE/health"
+curl -sS -H "Authorization: Bearer $VISTA3D_API_KEY" "$BASE/health"
 # 2) submit (targeted great vessels) → capture job_id
 curl -sS -X POST "$BASE/api/v1/segment" \
+  -H "Authorization: Bearer $VISTA3D_API_KEY" \
   -F "image=@scan.nii.gz" -F "mode=automatic" \
   -F 'label_prompt=[6,7]' -F "generate_preview=true"
 # 3) poll
-curl -sS "$BASE/api/v1/jobs/$JOB_ID"
+curl -sS -H "Authorization: Bearer $VISTA3D_API_KEY" "$BASE/api/v1/jobs/$JOB_ID"
 # 4) fetch mask + metadata
-curl -sS -L -o seg.nii.gz "$BASE/api/v1/jobs/$JOB_ID/result"
-curl -sS "$BASE/api/v1/jobs/$JOB_ID/metadata"
+curl -sS -L -H "Authorization: Bearer $VISTA3D_API_KEY" -o seg.nii.gz "$BASE/api/v1/jobs/$JOB_ID/result"
+curl -sS -H "Authorization: Bearer $VISTA3D_API_KEY" "$BASE/api/v1/jobs/$JOB_ID/metadata"
 ```
 > Note: pass the file as `-F "image=@scan.nii.gz"`. Adding `;type=…` breaks curl's file read (observed).
 
@@ -282,13 +284,12 @@ import os, time, json, httpx
 
 class Vista3DClient:
     def __init__(self):
-        base = os.environ["VISTA3D_BASE_URL"].rstrip("/")
-        secret = os.environ["VISTA3D_ENDPOINT_SECRET"]
-        self.prefix = f"{base}/x/{secret}"
-        self.timeout = float(os.environ.get("VISTA3D_TIMEOUT_S", "120"))
+        self.prefix = os.environ["VISTA3D_API_BASE"].rstrip("/")
+        self.headers = {"Authorization": f"Bearer {os.environ['VISTA3D_API_KEY']}"}
+        self.timeout = float(os.environ.get("VISTA3D_TIMEOUT_SECONDS", "120"))
 
     def health(self) -> dict:
-        return httpx.get(f"{self.prefix}/health", timeout=self.timeout).json()
+        return httpx.get(f"{self.prefix}/health", headers=self.headers, timeout=self.timeout).json()
 
     def segment(self, image_path: str, *, mode="automatic", label_prompt=None,
                 generate_preview=False) -> dict:
@@ -298,7 +299,7 @@ class Vista3DClient:
             data["label_prompt"] = json.dumps(label_prompt)   # JSON array string
         if generate_preview:
             data["generate_preview"] = "true"
-        r = httpx.post(f"{self.prefix}/api/v1/segment", data=data, files=files,
+        r = httpx.post(f"{self.prefix}/api/v1/segment", headers=self.headers, data=data, files=files,
                        timeout=self.timeout)
         r.raise_for_status()                                   # 202 expected
         return r.json()
@@ -306,18 +307,18 @@ class Vista3DClient:
     def wait(self, job_id: str, *, interval=3.0, max_wait=600) -> dict:
         deadline = max_wait
         while deadline > 0:
-            s = httpx.get(f"{self.prefix}/api/v1/jobs/{job_id}", timeout=self.timeout).json()
+            s = httpx.get(f"{self.prefix}/api/v1/jobs/{job_id}", headers=self.headers, timeout=self.timeout).json()
             if s["status"] in ("completed", "failed"):
                 return s
             time.sleep(interval); deadline -= interval
         raise TimeoutError(job_id)
 
     def metadata(self, job_id: str) -> dict:
-        return httpx.get(f"{self.prefix}/api/v1/jobs/{job_id}/metadata",
+        return httpx.get(f"{self.prefix}/api/v1/jobs/{job_id}/metadata", headers=self.headers,
                          timeout=self.timeout).json()
 
     def result_bytes(self, job_id: str) -> bytes:
-        return httpx.get(f"{self.prefix}/api/v1/jobs/{job_id}/result",
+        return httpx.get(f"{self.prefix}/api/v1/jobs/{job_id}/result", headers=self.headers,
                          timeout=self.timeout).content
 ```
 Then derive volumes deterministically from the mask (e.g. with `nibabel` + `numpy`):

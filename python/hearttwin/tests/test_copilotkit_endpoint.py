@@ -230,6 +230,17 @@ async def test_answer_blocks_unsafe_model_output(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_answer_uses_deterministic_fallback_without_openai_key(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    case_id = await _prepared_case()
+    result = await copilot.answer_case_question(case_id, "What is the ejection fraction?")
+    assert result["ok"] is True
+    assert result["model"] == "deterministic_fallback"
+    assert "simulated ejection fraction" in result["answer"]
+    assert result["safety_disclaimer"]
+
+
+@pytest.mark.asyncio
 async def test_answer_requires_operate(monkeypatch):
     _patch_openai(monkeypatch, "n/a")
     case = await copilot.create_case()

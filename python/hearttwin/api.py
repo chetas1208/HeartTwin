@@ -43,6 +43,7 @@ from python.hearttwin.schemas import (
     UploadedFile,
 )
 from python.hearttwin.tools.storage import get_case, get_file, store_case, store_file
+from python.hearttwin.tools.env_config import validate_environment
 from python.hearttwin.tools.weave_trace import get_latest_run, get_traces, weave_status
 
 app = FastAPI(
@@ -79,7 +80,7 @@ add_fastapi_endpoint(app, _copilot_sdk, "/copilotkit")
 
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse()
+    return HealthResponse(environment=validate_environment())
 
 
 # ---------------------------------------------------------------------------

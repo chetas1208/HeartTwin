@@ -12,6 +12,8 @@ import os
 import uuid
 from typing import Any, Optional
 
+from python.hearttwin.tools.env_config import redis_memory_enabled
+
 _MEMORY_STORE: dict[str, Any] = {}
 _FILE_STORE: dict[str, bytes] = {}
 
@@ -62,7 +64,7 @@ async def store_case(case_id: str, case_data: dict) -> None:
     redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
     redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
-    if redis_url and redis_token:
+    if redis_memory_enabled() and redis_url and redis_token:
         try:
             import httpx
             payload = json.dumps(case_data)
@@ -91,7 +93,7 @@ async def get_case(case_id: str) -> Optional[dict]:
     redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
     redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
-    if redis_url and redis_token:
+    if redis_memory_enabled() and redis_url and redis_token:
         try:
             import httpx
             response = await httpx.AsyncClient().get(

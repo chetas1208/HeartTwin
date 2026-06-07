@@ -189,7 +189,7 @@
 - **TE.1** `Dockerfile` + `requirements.txt` for FastAPI; deploy to **Hugging Face
   Spaces (Docker, CPU-basic)**; set backend secrets. **Verify:** public URL serves
   `/api/v1/health` and `/api/v1/system-check` returns `ok`.
-- **TE.2** Vercel project, **Root Directory = `web`**; set `NEXT_PUBLIC_API_BASE`
+- **TE.2** Vercel project, **Root Directory = `web`**; set `NUXT_PUBLIC_API_BASE`
   (HF URL) + CopilotKit runtime envs; deploy. **Verify:** the app loads and talks to
   the backend.
 - **TE.3** FastAPI CORS allows the Vercel domain (incl. preview); run the full demo

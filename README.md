@@ -24,20 +24,59 @@ pnpm dev                    # http://localhost:3000
 
 ## Environment variables
 
-```
-OPENAI_API_KEY=             # optional: enables image/ECG vision extraction
-WANDB_API_KEY=              # optional: enables Weave tracing
-WANDB_PROJECT=hearttwin-lab
+```dotenv
+# OpenAI
+OPENAI_API_KEY=
+
+# OpenAI model routing
+OPENAI_MODEL_INTAKE=gpt-5.4-mini
+OPENAI_MODEL_EXTRACTION=gpt-5.4-mini
+OPENAI_MODEL_VALIDATOR=gpt-5.4-mini
+OPENAI_MODEL_STATE_BUILDER=gpt-5.5
+OPENAI_MODEL_ELECTROPHYSIOLOGY=gpt-5.4-mini
+OPENAI_MODEL_HEMODYNAMICS=gpt-5.4-mini
+OPENAI_MODEL_RECOVERY=gpt-5.5
+OPENAI_MODEL_EVALUATOR=gpt-5.5
+OPENAI_MODEL_FAST=gpt-5.4-nano
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+# W&B / Weave
+WANDB_API_KEY=
 WANDB_ENTITY=
+WANDB_PROJECT=hearttwin-weavehacks
 NUXT_PUBLIC_WEAVE_PROJECT_URL=
-BLOB_READ_WRITE_TOKEN=      # optional: Vercel Blob file storage
-UPSTASH_REDIS_REST_URL=     # optional: Redis case state persistence
+
+# Storage
+BLOB_READ_WRITE_TOKEN=
+
+# Redis / Upstash
+UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
-NUXT_PUBLIC_APP_NAME=HeartTwin Lab
+
+# API base
 NUXT_PUBLIC_API_BASE=/api/v1
+API_BASE=/api/v1
+
+# Backward compatibility only.
+# Do not use NEXT_PUBLIC_API_BASE inside Nuxt code except as fallback.
+NEXT_PUBLIC_API_BASE=http://localhost:8000/api/v1
+
+# VISTA-3D local/tunneled model endpoint
+VISTA3D_API_BASE=
+VISTA3D_API_KEY=
+VISTA3D_TIMEOUT_SECONDS=120
+VISTA3D_ENABLED=false
+
+# App
+NUXT_PUBLIC_APP_NAME=HeartTwin Lab
+HEARTTWIN_SAFETY_MODE=strict
+HEARTTWIN_TRACE_MODE=weave_with_local_fallback
+HEARTTWIN_REDIS_MEMORY_ENABLED=true
 ```
 
-Without any API keys, the app runs fully on local in-memory fallbacks using deterministic algorithms only.
+Nuxt reads `NUXT_PUBLIC_API_BASE` first. `NEXT_PUBLIC_API_BASE` exists only as a backward-compatible fallback, and Vercel production should normally use `/api/v1`.
+
+Without any API keys, the app runs on local in-memory fallbacks and deterministic algorithms where possible. Weave, Redis, OpenAI, and VISTA-3D integrations all fail safely when disabled or unconfigured.
 
 ## API endpoints
 
@@ -67,7 +106,7 @@ Judging criteria mapping:
 Required W&B Weave setup:
 1. Create a W&B account.
 2. Set `WANDB_API_KEY`.
-3. Set `WANDB_PROJECT=hearttwin-lab`.
+3. Set `WANDB_PROJECT=hearttwin-weavehacks`.
 4. Optionally set `WANDB_ENTITY` or `NUXT_PUBLIC_WEAVE_PROJECT_URL`.
 5. Run a case and click View Weave Project.
 

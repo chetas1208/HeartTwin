@@ -96,6 +96,48 @@ def _with_disclaimer(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _deterministic_case_answer(case: CaseRecord, question: str, snapshot: dict[str, Any]) -> dict[str, Any]:
+    summary = snapshot.get("simulation_summary", {})
+    parts = [CORE_SAFETY_PHRASE]
+
+    if isinstance(summary, dict):
+        metrics = [
+            ("ejection_fraction_pct", "simulated ejection fraction", "%"),
+            ("stroke_volume_ml", "simulated stroke volume", " mL"),
+            ("cardiac_output_l_min", "simulated cardiac output", " L/min"),
+            ("map_mmhg", "simulated mean arterial pressure", " mmHg"),
+            ("heart_rate_bpm", "source heart rate", " bpm"),
+        ]
+        rendered = []
+        for key, label, unit in metrics:
+            value = summary.get(key)
+            if value is not None:
+                rendered.append(f"{label}: {value}{unit}")
+        if rendered:
+            parts.append("Deterministic computed values available for this case: " + "; ".join(rendered) + ".")
+
+    if "recovery_scenarios" in snapshot:
+        parts.append("Bounded simulated recovery trajectories are available in the case record.")
+
+    parts.append(
+        "OpenAI is not configured, so this response is limited to stored deterministic simulation outputs."
+    )
+
+    answer = " ".join(parts)
+    _check_output_safety(answer)
+    return _with_disclaimer(
+        {
+            "ok": True,
+            "case_id": case.case_id,
+            "question": question.strip(),
+            "answer": answer,
+            "model": "deterministic_fallback",
+            "grounded_on": sorted(snapshot.keys()),
+            "weave": _run_weave(case.case_id),
+        }
+    )
+
+
 # ---------------------------------------------------------------------------
 # Action: create_case
 # ---------------------------------------------------------------------------
@@ -429,11 +471,7 @@ async def answer_case_question(case_id: str, question: str) -> dict[str, Any]:
 
     api_key = os.environ.get("OPENAI_API_KEY", "")
     if not api_key:
-        # No silent fallback: surface the misconfiguration explicitly.
-        raise RuntimeError(
-            "OPENAI_API_KEY is not configured — answer_case_question requires "
-            "live OpenAI access and does not fabricate answers."
-        )
+        return _deterministic_case_answer(case, question, snapshot)
 
     import openai
 

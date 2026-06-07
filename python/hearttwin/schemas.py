@@ -344,3 +344,5 @@ class SimulateRecoveryRequest(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     service: str = "hearttwin-api"
+    disclaimer: str = DISCLAIMER
+    environment: dict[str, Any] = Field(default_factory=dict)
