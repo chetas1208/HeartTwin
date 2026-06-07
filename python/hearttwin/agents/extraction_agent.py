@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import time
 from typing import Any
 
@@ -63,6 +64,11 @@ async def run_extraction_agent(
             extracted, csv_warnings = _extract_from_csv(file_bytes, file_id, filename)
             warnings.extend(csv_warnings)
             method = "csv_parse"
+
+        elif content_type == "application/json" or filename.lower().endswith(".json"):
+            extracted, json_warnings = _extract_from_json(file_bytes, file_id, filename)
+            warnings.extend(json_warnings)
+            method = "json_parse"
 
         elif _is_ct_volume(filename, content_type):
             extracted, ct_warnings = await _extract_from_ct(file_bytes, file_id, filename)
@@ -211,6 +217,77 @@ async def _extract_from_video(
     result = await extract_from_image(frame_png, file_id, f"{filename}.frame.png", "image/png")
     warnings.extend(result.warnings)
     return result.extracted_values, warnings
+
+
+# Alias -> canonical field map for JSON cardiac payloads (manual vitals, echo
+# metadata, case manifests). Lowercased keys.
+_JSON_FIELD_ALIASES: dict[str, str] = {
+    "heart_rate_bpm": "heart_rate_bpm", "heart_rate": "heart_rate_bpm", "hr": "heart_rate_bpm",
+    "pulse": "heart_rate_bpm", "pulse_bpm": "heart_rate_bpm",
+    "systolic_bp_mmhg": "systolic_bp_mmhg", "systolic": "systolic_bp_mmhg", "sbp": "systolic_bp_mmhg",
+    "systolic_bp": "systolic_bp_mmhg",
+    "diastolic_bp_mmhg": "diastolic_bp_mmhg", "diastolic": "diastolic_bp_mmhg", "dbp": "diastolic_bp_mmhg",
+    "diastolic_bp": "diastolic_bp_mmhg",
+    "edv_ml": "edv_ml", "edv": "edv_ml", "end_diastolic_volume": "edv_ml", "end_diastolic_volume_ml": "edv_ml",
+    "esv_ml": "esv_ml", "esv": "esv_ml", "end_systolic_volume": "esv_ml", "end_systolic_volume_ml": "esv_ml",
+    "ejection_fraction_pct": "ejection_fraction_pct", "ejection_fraction": "ejection_fraction_pct",
+    "ejection_fraction_pct_reported": "ejection_fraction_pct", "ef": "ejection_fraction_pct",
+    "ef_pct": "ejection_fraction_pct", "lvef": "ejection_fraction_pct",
+    "stroke_volume_ml": "stroke_volume_ml", "stroke_volume": "stroke_volume_ml", "sv_ml": "stroke_volume_ml",
+    "cardiac_output_l_min": "cardiac_output_l_min", "cardiac_output": "cardiac_output_l_min",
+    "co_l_min": "cardiac_output_l_min",
+    "oxygen_saturation_pct": "oxygen_saturation_pct", "oxygen_saturation": "oxygen_saturation_pct",
+    "spo2": "oxygen_saturation_pct", "o2_sat": "oxygen_saturation_pct",
+    "troponin_ng_l": "troponin_ng_l", "troponin": "troponin_ng_l",
+    "bnp_pg_ml": "bnp_pg_ml", "bnp": "bnp_pg_ml",
+    "qrs_duration_ms": "qrs_duration_ms", "qrs": "qrs_duration_ms", "qrs_duration": "qrs_duration_ms",
+    "qt_interval_ms": "qt_interval_ms", "qt": "qt_interval_ms", "qt_interval": "qt_interval_ms",
+    "qtc_ms": "qtc_ms", "qtc": "qtc_ms",
+}
+
+
+def _extract_from_json(
+    file_bytes: bytes, file_id: str, filename: str
+) -> tuple[dict[str, Any], list[str]]:
+    """Extract cardiac measurements from JSON payloads.
+
+    Handles manual vitals (`user_vitals: {...}`), echo metadata (flat keys), and
+    case manifests (nested `sampled_inputs`/`expected_deterministic`). Walks the
+    object recursively; first numeric occurrence of a known field wins. Never
+    invents values — non-cardiac/missing keys are ignored.
+    """
+    warnings: list[str] = []
+    extracted: dict[str, Any] = {}
+
+    try:
+        payload = json.loads(file_bytes.decode("utf-8", errors="replace"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        return {}, [f"JSON {filename}: parse error: {exc}"]
+
+    def collect(node: Any, path: str) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                key = str(k).strip().lower()
+                field = _JSON_FIELD_ALIASES.get(key)
+                if field and field not in extracted and isinstance(v, (int, float)) and not isinstance(v, bool):
+                    extracted[field] = {
+                        "value": float(v),
+                        "unit": _get_unit(field),
+                        "source": "file_extraction",
+                        "confidence": 0.85,
+                        "source_file_id": file_id,
+                        "evidence": f"JSON key '{path}.{k}'" if path else f"JSON key '{k}'",
+                        "method": "json_parse",
+                    }
+                collect(v, f"{path}.{k}" if path else str(k))
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                collect(v, f"{path}[{i}]")
+
+    collect(payload, "")
+    if not extracted:
+        warnings.append(f"JSON {filename}: no recognizable cardiac fields found")
+    return extracted, warnings
 
 
 def _extract_from_csv(
