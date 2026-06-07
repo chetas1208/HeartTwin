@@ -444,8 +444,8 @@ export function CaseIntakePanel() {
       <div className="ht-hairline" />
 
       <PanelBody className="flex flex-col gap-3 pt-3">
-        {/* Imaging & files (collapsible; collapsed so notes leads) --------- */}
-        <details className="group border border-[var(--ht-line)] bg-surface-2/40">
+        {/* Imaging & files (open by default) ------------------------------- */}
+        <details open className="group border border-[var(--ht-line)] bg-surface-2/40">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
             <FileArrowUp weight="regular" className="size-4 text-muted" />
             Imaging &amp; files
