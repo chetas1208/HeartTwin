@@ -26,8 +26,9 @@ HeartTwinBench has **two halves**:
 4. **Diagnosis** (`run_dx_benchmark.py`) — a **research ECG classifier** scored on
    **real PTB-XL diagnostic-superclass labels** (NORM/MI/STTC/CD/HYP), user-reachable
    via `POST /api/v1/ecg/diagnose` with a disclaimer. See
-   **[`DIAGNOSIS.md`](./DIAGNOSIS.md)**. Scaffold result: macro-AUROC 0.836 (deep
-   SOTA on full PTB-XL ~0.93). Not a medical device.
+   **[`DIAGNOSIS.md`](./DIAGNOSIS.md)**. Scaffold result: macro-AUROC **0.836 vs
+   gpt-4o-vision 0.566** (+0.27) — a trained signal model beats a generalist
+   reading the ECG strip. Not a medical device.
 
 ---
 

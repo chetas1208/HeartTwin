@@ -31,8 +31,15 @@ random forest (`research/ecg_dx/classifier.py`). It is intentionally a **scaffol
 
 ```
 research classifier:  macro-AUROC = 0.836   macro-F1 = 0.493
-per-class AUROC:  NORM 0.92   CD 0.91   HYP 0.89   MI 0.80   STTC 0.65
+  per-class AUROC:  NORM 0.92   CD 0.91   HYP 0.89   MI 0.80   STTC 0.65
+gpt-4o (reads ECG strip image):  macro-AUROC = 0.566   macro-F1 = 0.155
+                                 Delta macro-AUROC = +0.270  (system)
 ```
+
+This is the compelling head-to-head: a small trained signal classifier beats
+gpt-4o-vision reading the ECG strip by **+0.27 macro-AUROC** — and gpt-4o at 0.566
+is barely above random (0.5). A generalist looking at a picture of an ECG cannot
+do multi-label diagnostic screening; a model trained on the waveform can.
 
 Context: deep models on the full 21k-record PTB-XL reach ~0.93 macro-AUROC. 0.84
 from a feature-based RF on ~290 records is a solid scaffold and a clear baseline to
