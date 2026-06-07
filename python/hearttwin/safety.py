@@ -23,7 +23,7 @@ _ALLOWED_SAFETY_PHRASES = [
 
 _BLOCKED_PATTERNS = [
     r"\b(diagnos|diagnosis|diagnose)\b",
-    r"\b(prescrib|prescription)\b",
+    r"\b(prescrib\w*|prescription)\b",
     r"\b(treat(ment)?|therapy)\b",
     r"\b(medication|drug|dose|dosage|dosing)\b",
     r"\b(emergenc(y|ies)|triage|911|ambulance)\b",
