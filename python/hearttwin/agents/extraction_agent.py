@@ -15,7 +15,10 @@ from typing import Any
 from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentTraceStep
 from python.hearttwin.tools.image_extract import extract_from_image
 from python.hearttwin.tools.pdf_extract import extract_pdf_text
+from python.hearttwin.tools.vista3d_client import segment_ct_and_analyze
 from python.hearttwin.tools.weave_trace import TraceContext
+
+_CT_EXTENSIONS = (".nii", ".nii.gz", ".dcm", ".zip")
 
 _AGENT_ID = "multimodal_extraction"
 _AGENT_NAME = "Multimodal Extraction Agent"
@@ -60,6 +63,16 @@ async def run_extraction_agent(
             extracted, csv_warnings = _extract_from_csv(file_bytes, file_id, filename)
             warnings.extend(csv_warnings)
             method = "csv_parse"
+
+        elif _is_ct_volume(filename, content_type):
+            extracted, ct_warnings = await _extract_from_ct(file_bytes, file_id, filename)
+            warnings.extend(ct_warnings)
+            method = "ct_segmentation"
+
+        elif content_type.startswith("video/") or filename.lower().endswith((".avi", ".mp4", ".mov", ".webm")):
+            extracted, vid_warnings = await _extract_from_video(file_bytes, file_id, filename, content_type)
+            warnings.extend(vid_warnings)
+            method = "video_frame_extraction"
 
         else:
             extracted = {}
@@ -116,6 +129,88 @@ async def run_extraction_agent(
         confidence=confidence,
         trace=tracer.steps,
     )
+
+
+def _is_ct_volume(filename: str, content_type: str) -> bool:
+    """True for CT volume / DICOM-series uploads VISTA-3D can segment."""
+    name = (filename or "").lower()
+    if name.endswith(_CT_EXTENSIONS):
+        return True
+    return content_type in ("application/gzip", "application/x-gzip") and name.endswith((".nii", ".gz"))
+
+
+async def _extract_from_ct(
+    file_bytes: bytes, file_id: str, filename: str
+) -> tuple[dict[str, Any], list[str]]:
+    """Segment a CT volume via VISTA-3D and derive deterministic volumetry.
+
+    Emits a non-scalar ``__ct_segmentation__`` artifact (volumes + educational
+    abnormality observations + provenance). Never invents cardiac scalars: the
+    single heart label cannot yield chamber EF, so this only carries CT-derived
+    volumetric proxies. Fail-safe — VISTA-3D being disabled/down degrades to a
+    labelled artifact with warnings, never an exception.
+    """
+    warnings: list[str] = []
+    try:
+        result = await segment_ct_and_analyze(file_bytes, filename, file_id=file_id)
+    except Exception as exc:  # defensive: the client is already fail-safe
+        return {}, [f"CT segmentation error ({filename}): {type(exc).__name__}: {exc}"]
+
+    status = result.get("status")
+    if status not in ("analyzed",):
+        warnings.append(
+            f"CT '{filename}': segmentation status '{status}' — "
+            f"{result.get('note', 'no CT-derived values available')}."
+        )
+    warnings.extend(result.get("warnings", []))
+
+    extracted = {
+        "__ct_segmentation__": {
+            "value": result,
+            "unit": "segmentation",
+            "source": "vista3d",
+            "method": "ct_segmentation",
+            "confidence": 0.80 if status == "analyzed" else 0.0,
+            "source_file_id": file_id,
+        }
+    }
+    return extracted, warnings
+
+
+async def _extract_from_video(
+    file_bytes: bytes, file_id: str, filename: str, content_type: str
+) -> tuple[dict[str, Any], list[str]]:
+    """Extract a representative frame from an echo video and run image extraction.
+
+    Decoding needs an optional codec lib (imageio-ffmpeg). When absent, this
+    degrades to a labelled warning — the upload is accepted, nothing crashes,
+    and no values are invented.
+    """
+    warnings: list[str] = []
+    frame_png: bytes | None = None
+    try:
+        import imageio.v3 as iio  # type: ignore
+
+        import numpy as np
+
+        frames = iio.imread(io.BytesIO(file_bytes), index=None)  # all frames
+        arr = frames[len(frames) // 2] if getattr(frames, "ndim", 0) == 4 else frames
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.fromarray(np.asarray(arr)).convert("RGB").save(buf, format="PNG")
+        frame_png = buf.getvalue()
+    except Exception as exc:
+        warnings.append(
+            f"Video '{filename}': frame extraction unavailable "
+            f"({type(exc).__name__}) — install imageio-ffmpeg to enable echo-video frames. "
+            "Upload accepted; no values invented."
+        )
+        return {}, warnings
+
+    result = await extract_from_image(frame_png, file_id, f"{filename}.frame.png", "image/png")
+    warnings.extend(result.warnings)
+    return result.extracted_values, warnings
 
 
 def _extract_from_csv(

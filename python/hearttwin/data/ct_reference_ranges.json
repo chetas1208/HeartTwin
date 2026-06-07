@@ -1,0 +1,10 @@
+{
+  "_description": "Educational reference ranges for CT-segmentation volumetric proxies. SIMULATION ONLY, not clinical thresholds. Whole-heart volume is the VISTA-3D single heart label (115); it does not split into chambers, so this is a global cardiomegaly proxy, never a chamber EF or diagnosis.",
+  "heart_total_volume_ml": {
+    "normal_max": 900.0,
+    "mild": 1000.0,
+    "moderate": 1150.0,
+    "severe": 1350.0,
+    "note": "Approximate adult whole-heart CT segmentation volume (blood pool + myocardium as one label). Coarse educational proxy only."
+  }
+}

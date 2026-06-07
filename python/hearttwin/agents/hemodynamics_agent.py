@@ -50,7 +50,7 @@ from python.hearttwin.tools.hemodynamics import (
     generate_cardiac_cycle,
     generate_pressure_volume_loop,
 )
-from python.hearttwin.tools.model_config import get_hemodynamics_model
+from python.hearttwin.tools.model_config import chat_tuning, get_hemodynamics_model
 from python.hearttwin.tools.weave_trace import TraceContext, get_trace_sink
 
 # ---------------------------------------------------------------------------
@@ -241,24 +241,9 @@ async def _write_redis_operation(case_id: str, payload: dict) -> bool:
 
     if not redis_memory_enabled():
         return False
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (url and token):
-        return False
-    key = f"hearttwin:case:{case_id}:operation"
-    try:
-        import httpx
+    from python.hearttwin.tools import redis_client
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{url}/set/{key}",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "text/plain"},
-                content=json.dumps(payload),
-                timeout=10.0,
-            )
-        return resp.status_code < 300
-    except Exception:
-        return False
+    return await redis_client.set_json(f"hearttwin:case:{case_id}:operation", payload)
 
 
 # ---------------------------------------------------------------------------
@@ -308,8 +293,7 @@ async def _generate_operation_summary(
         response = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=120,
-            temperature=0.0,
+            **chat_tuning(model, 120, 0.0),
         )
         raw = (response.choices[0].message.content or "").strip()
         return enforce_simulation_language(raw) or fallback

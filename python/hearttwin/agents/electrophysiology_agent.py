@@ -34,7 +34,7 @@ from python.hearttwin.schemas import (
     ValueSource,
 )
 from python.hearttwin.tools.ecg_features import EcgFeatures, analyze_waveform
-from python.hearttwin.tools.model_config import get_electrophysiology_model
+from python.hearttwin.tools.model_config import chat_tuning, get_electrophysiology_model
 from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _EP_AGENT_ID = "electrophysiology"
@@ -626,8 +626,7 @@ async def _normalize_reported_label_with_openai(
                     "content": f"Reported rhythm text: {sanitized_label}",
                 },
             ],
-            temperature=0,
-            max_tokens=120,
+            **chat_tuning(model_name, 120, 0),
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or "{}"
@@ -775,9 +774,9 @@ async def _store_electrophysiology_memory(
     Never raises — storage failures must not break the agent pipeline, and raw
     waveform arrays are never written here (chart/visual summaries only).
     """
-    redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (redis_url and redis_token):
+    from python.hearttwin.tools import redis_client
+
+    if not redis_client.is_configured():
         return
 
     chart_summary = None
@@ -807,23 +806,7 @@ async def _store_electrophysiology_memory(
         "updated_at": finished_at,
     }
 
-    key = f"hearttwin:case:{case_id}:electrophysiology"
-    try:
-        import httpx
-
-        body = json.dumps(payload)
-        response = await httpx.AsyncClient().post(
-            f"{redis_url}/set/{key}",
-            headers={
-                "Authorization": f"Bearer {redis_token}",
-                "Content-Type": "text/plain",
-            },
-            content=body,
-            timeout=10.0,
-        )
-        response.raise_for_status()
-    except Exception:
-        pass
+    await redis_client.set_json(f"hearttwin:case:{case_id}:electrophysiology", payload)
 
 
 # ---------------------------------------------------------------------------

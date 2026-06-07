@@ -20,6 +20,7 @@ import {
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
 import { AGENT_STAGES, type AgentName } from "@/types/agents";
 import { useHeartTwinStore, type TraceEvent } from "@/lib/store";
+import { realWarnings } from "@/lib/warnings";
 
 // ---------------------------------------------------------------------------
 // Span model
@@ -267,13 +268,14 @@ export function AgentTraceTimeline() {
         <ol className="flex flex-col">
           {AGENT_STAGES.map((meta) => {
             const span = spans[meta.name];
-            const st = span?.status ?? "pending";
+            const rawSt = span?.status ?? "pending";
+            // Prior/default noise must not flag an agent as a warning.
+            const realW = realWarnings(span?.warnings);
+            const st = rawSt === "warning" && realW.length === 0 ? "success" : rawSt;
             const Glyph = STATUS_ICON[st];
             const dur = span ? formatDuration(span.durationMs) : "";
             const reason =
-              (st === "warning" || st === "failed") && span?.warnings?.length
-                ? span.warnings[0]
-                : null;
+              (st === "warning" || st === "failed") && realW.length ? realW[0] : null;
             return (
               <li
                 key={meta.name}

@@ -22,7 +22,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentStageResult
-from python.hearttwin.tools.model_config import get_validator_model
+from python.hearttwin.tools.model_config import chat_tuning, get_validator_model
 from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _VALIDATOR_AGENT_ID = "evidence_validator"
@@ -943,8 +943,7 @@ async def _summarize_conflicts_with_openai(
                     "content": json.dumps({"conflicts": conflicts[:10]}),
                 },
             ],
-            temperature=0,
-            max_tokens=400,
+            **chat_tuning(model_name, 400, 0),
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or "{}"
@@ -968,26 +967,9 @@ async def _summarize_conflicts_with_openai(
 
 
 async def _store_validation_memory(case_id: str, payload: dict[str, Any]) -> None:
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (url and token):
-        return
+    from python.hearttwin.tools import redis_client
 
-    try:
-        import httpx
-
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{url}/set/hearttwin:case:{case_id}:validation",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "text/plain",
-                },
-                content=json.dumps(payload),
-                timeout=10.0,
-            )
-    except Exception:
-        return
+    await redis_client.set_json(f"hearttwin:case:{case_id}:validation", payload)
 
 
 # ---------------------------------------------------------------------------

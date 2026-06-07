@@ -49,7 +49,7 @@ from python.hearttwin.tools.cardiac_state import (
     compute_rr_from_hr,
     compute_stroke_volume,
 )
-from python.hearttwin.tools.model_config import get_state_builder_model
+from python.hearttwin.tools.model_config import chat_tuning, get_state_builder_model
 from python.hearttwin.tools.scoring import compute_data_quality_score
 from python.hearttwin.tools.weave_trace import TraceContext
 
@@ -266,6 +266,44 @@ def _apply_scalar_prior(
     })
     source_map.append(_source_entry(field, mv))
     return mv
+
+
+def _attach_ct_segmentation(
+    validated_fields: dict[str, Any],
+    source_map: list[SourceMapEntry],
+    warnings: list[str],
+) -> Optional[dict[str, Any]]:
+    """Carry the CT segmentation artifact onto the state + record provenance.
+
+    Adds a `method="ct_segmentation"` source-map entry so the findings layer
+    reports `imaging_source = vista3d_segmentation`. Never invents cardiac
+    scalars — CT here yields only volumetric proxies (single heart label).
+    """
+    entry = validated_fields.get("__ct_segmentation__")
+    if not isinstance(entry, dict):
+        return None
+    payload = entry.get("value")
+    if not isinstance(payload, dict):
+        return None
+
+    status = payload.get("status")
+    source_map.append(SourceMapEntry(
+        field="ct_segmentation",
+        value=None,
+        unit="segmentation",
+        source=ValueSource.FILE_EXTRACTION,
+        source_file_id=entry.get("source_file_id"),
+        confidence=float(entry.get("confidence", 0.0) or 0.0),
+        method="ct_segmentation",
+        evidence=(f"VISTA-3D CT segmentation ({status}); "
+                  f"job {payload.get('job_id', 'n/a')}"),
+    ))
+    if status != "analyzed":
+        warnings.append(
+            f"CT segmentation present but not analyzed (status: {status}) — "
+            "no CT-derived volumes available; no values invented."
+        )
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -774,8 +812,7 @@ async def _explain_mapping_with_openai(
                     }),
                 },
             ],
-            temperature=0,
-            max_tokens=200,
+            **chat_tuning(model_name, 200, 0),
         )
         text = (response.choices[0].message.content or "").strip()
         return (text or None), None
@@ -811,21 +848,9 @@ async def _persist_state_memory(
     }
     _STATE_MEMORY[key] = payload
 
-    redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (redis_url and redis_token):
-        return
-    try:
-        import httpx
+    from python.hearttwin.tools import redis_client
 
-        await httpx.AsyncClient().post(
-            f"{redis_url}/set/{key}",
-            headers={"Authorization": f"Bearer {redis_token}", "Content-Type": "text/plain"},
-            content=json.dumps(payload, default=str),
-            timeout=10.0,
-        )
-    except Exception:
-        pass
+    await redis_client.set_json(key, payload)
 
 
 # ---------------------------------------------------------------------------
@@ -888,6 +913,8 @@ async def run_state_builder_agent(
 
     ts = _init_tissue_state(builder_input.validated_fields, active_priors, source_map, warnings, priors_used)
 
+    ct_segmentation = _attach_ct_segmentation(validated_fields, source_map, warnings)
+
     operating = _normalize_operating_environment(
         builder_input.operating_environment, simulation_config, source_map, warnings, priors_used,
     )
@@ -904,6 +931,7 @@ async def run_state_builder_agent(
         simulation_config=sim_config,
         source_map=source_map,
         safety_level=SafetyLevel.CLEAR,
+        ct_segmentation=ct_segmentation,
     )
     state.data_quality_score = compute_data_quality_score(state.model_dump(mode="json"))
 

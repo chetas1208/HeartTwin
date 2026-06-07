@@ -63,9 +63,7 @@ def validate_environment() -> dict[str, Any]:
     vista_enabled = vista3d_enabled()
     vista_configured = bool(os.environ.get("VISTA3D_API_BASE") and os.environ.get("VISTA3D_API_KEY"))
     redis_enabled = redis_memory_enabled()
-    redis_configured = bool(
-        os.environ.get("UPSTASH_REDIS_REST_URL") and os.environ.get("UPSTASH_REDIS_REST_TOKEN")
-    )
+    redis_configured = bool(os.environ.get("REDIS_URL"))
     weave_is_enabled = weave_enabled()
     weave_configured = bool(os.environ.get("WANDB_API_KEY"))
 
@@ -73,7 +71,7 @@ def validate_environment() -> dict[str, Any]:
     if vista_enabled and not vista_configured:
         warnings.append("VISTA3D_ENABLED=true but VISTA3D_API_BASE or VISTA3D_API_KEY is missing")
     if redis_enabled and not redis_configured:
-        warnings.append("Redis memory is enabled but Upstash credentials are missing; using local memory fallback")
+        warnings.append("Redis memory is enabled but REDIS_URL is missing; using local memory fallback")
     if weave_is_enabled and not weave_configured:
         warnings.append("Weave tracing is enabled but WANDB_API_KEY is missing; using local trace fallback")
     if not os.environ.get("OPENAI_API_KEY"):
@@ -105,7 +103,7 @@ def validate_environment() -> dict[str, Any]:
         "redis": {
             "enabled": redis_enabled,
             "configured": redis_configured,
-            "mode": "upstash" if redis_enabled and redis_configured else "local_memory",
+            "mode": "redis" if redis_enabled and redis_configured else "local_memory",
         },
         "vista3d": {
             "enabled": vista_enabled,

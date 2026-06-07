@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from python.hearttwin.safety import CORE_SAFETY_PHRASE
-from python.hearttwin.tools.model_config import get_vision_model
+from python.hearttwin.tools.model_config import chat_tuning, get_vision_model
 
 
 @dataclass
@@ -102,7 +102,7 @@ async def extract_from_image(
                     ],
                 }
             ],
-            max_tokens=1000,
+            **chat_tuning(model, 1000),
             response_format={"type": "json_object"},
         )
 

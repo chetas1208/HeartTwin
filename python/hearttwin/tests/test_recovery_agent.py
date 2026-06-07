@@ -441,7 +441,9 @@ async def test_agent_id_and_name():
     state = _make_state()
     response, _ = await run_recovery_agent(state, None, "case-meta")
 
-    assert response.agent == "recovery_orchestration"
+    # AgentResponse.agent is the frontend/orchestrator key; the internal id
+    # lives on stage_result.agent_id.
+    assert response.agent == "recovery_agent"
     stage = AgentStageResult.model_validate(response.outputs["agent_stage_result"])
     assert stage.agent_id == "recovery_orchestration"
     assert stage.agent_name == "Recovery Orchestration Agent"

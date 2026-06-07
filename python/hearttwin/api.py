@@ -13,8 +13,24 @@ from __future__ import annotations
 
 import asyncio
 import json
+import pathlib
 from collections.abc import AsyncIterator
 from typing import Any
+
+# Load the repo .env so local/dev runs pick up Redis, Weave, OpenAI, etc. from
+# the file. No-op when absent (e.g. on Vercel, where the platform injects env);
+# never overrides variables already set in the real environment. Skipped under
+# pytest so the test suite stays hermetic (tests set env explicitly and must not
+# hit live Redis/W&B from a developer's .env).
+import sys as _sys
+
+if "pytest" not in _sys.modules:
+    try:
+        from dotenv import load_dotenv as _load_dotenv
+
+        _load_dotenv(pathlib.Path(__file__).resolve().parents[2] / ".env")
+    except Exception:  # noqa: BLE001 — dotenv is optional; env may be set externally
+        pass
 
 from copilotkit.integrations.fastapi import add_fastapi_endpoint
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -111,8 +127,7 @@ async def get_config() -> dict:
     import os
 
     wandb_key = os.environ.get("WANDB_API_KEY", "")
-    upstash_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    upstash_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+    redis_url = os.environ.get("REDIS_URL", "")
     vista_enabled = os.environ.get("VISTA3D_ENABLED", "false").lower() == "true"
     vista_base = os.environ.get("VISTA3D_API_BASE", "")
 
@@ -125,7 +140,7 @@ async def get_config() -> dict:
             "entity": os.environ.get("WANDB_ENTITY", ""),
         },
         "redis": {
-            "configured": bool(upstash_url and upstash_token),
+            "configured": bool(redis_url),
         },
         "vista3d": {
             "enabled": vista_enabled,
@@ -197,9 +212,7 @@ def _integration_status() -> dict[str, str]:
     weave_configured = bool(os.environ.get("WANDB_API_KEY"))
     weave_status_str = "configured" if weave_configured else "local_fallback"
 
-    redis_configured = bool(
-        os.environ.get("UPSTASH_REDIS_REST_URL") and os.environ.get("UPSTASH_REDIS_REST_TOKEN")
-    )
+    redis_configured = bool(os.environ.get("REDIS_URL"))
     redis_status_str = "configured" if redis_configured else "memory_fallback"
 
     vista_enabled = os.environ.get("VISTA3D_ENABLED", "false").strip().lower() in {
@@ -570,10 +583,7 @@ async def get_harness(case_id: str) -> dict:
             "traced_tool_calls_count": sum(1 for t in traces if t.get("kind") == "tool_call"),
         },
         "redis": {
-            "configured": bool(
-                __import__("os").environ.get("UPSTASH_REDIS_REST_URL")
-                and __import__("os").environ.get("UPSTASH_REDIS_REST_TOKEN")
-            ),
+            "configured": bool(__import__("os").environ.get("REDIS_URL")),
         },
     })
 
@@ -589,7 +599,17 @@ _ALLOWED_TYPES = {
     "text/plain",
     "application/json",
     "application/octet-stream",
+    # Medical volumes / archives (CT NIfTI, gzip, DICOM series zip, DICOM)
+    "application/gzip",
+    "application/x-gzip",
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/dicom",
+    "application/nifti",
 }
+
+# Larger cap for medical imaging volumes (a chest CT .nii.gz is commonly 40-80 MB).
+_MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 
 
 @app.post("/api/v1/cases/{case_id}/files")
@@ -602,15 +622,24 @@ async def upload_file(case_id: str, file: UploadFile = File(...)) -> dict:
     case = CaseRecord(**case_data)
     content_type = file.content_type or "application/octet-stream"
 
-    if content_type not in _ALLOWED_TYPES and not content_type.startswith("image/"):
+    if (
+        content_type not in _ALLOWED_TYPES
+        and not content_type.startswith(("image/", "video/"))
+    ):
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type '{content_type}'. Accepted: PDF, image, CSV, TXT, JSON.",
+            detail=(
+                f"Unsupported file type '{content_type}'. Accepted: PDF, image, video, "
+                "CSV, TXT, JSON, and medical volumes (CT NIfTI/.nii.gz, DICOM/.zip)."
+            ),
         )
 
     file_bytes = await file.read()
-    if len(file_bytes) > 50 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File exceeds 50 MB limit")
+    if len(file_bytes) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+        )
 
     file_id, storage_url = await store_file(file_bytes, file.filename or "upload", content_type)
 

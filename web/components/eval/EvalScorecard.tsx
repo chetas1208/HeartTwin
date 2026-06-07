@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { Gauge, SealCheck } from "@phosphor-icons/react";
 import { Panel, PanelBody, PanelEmpty, PanelHeader } from "@/components/ui/Panel";
 import { useHeartTwinStore } from "@/lib/store";
+import { realWarnings } from "@/lib/warnings";
 import type { EvaluationReport } from "@/types/api";
 
 type Band = "good" | "watch" | "poor";
@@ -69,8 +70,11 @@ export function EvalScorecard() {
 
   const warnings = useMemo(() => {
     if (!evaluation) return [] as string[];
-    return Array.from(
-      new Set([...(evaluation.eval_scores?.warnings ?? []), ...(evaluation.warnings ?? [])]),
+    // Surface only real issues — drop population-prior / default-fill noise.
+    return realWarnings(
+      Array.from(
+        new Set([...(evaluation.eval_scores?.warnings ?? []), ...(evaluation.warnings ?? [])]),
+      ),
     );
   }, [evaluation]);
   const failedChecks = useMemo(() => {

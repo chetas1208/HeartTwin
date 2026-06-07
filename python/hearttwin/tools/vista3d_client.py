@@ -60,6 +60,8 @@ class Vista3DSegmentationResult(BaseModel):
     filename: Optional[str] = None
     job_id: Optional[str] = None
     status_url: Optional[str] = None
+    result_url: Optional[str] = None
+    metadata_url: Optional[str] = None
     mode: str = "automatic"
     requested_classes: list[str] = Field(default_factory=list)
     label_ids: dict[str, int] = Field(default_factory=dict)
@@ -224,6 +226,8 @@ async def run_segmentation(
             filename=filename,
             job_id=job_id,
             status_url=body.get("status_url"),
+            result_url=body.get("result_url"),
+            metadata_url=body.get("metadata_url"),
             mode=mode,
             requested_classes=list(target_classes),
             label_ids=label_ids,
@@ -247,3 +251,119 @@ async def run_segmentation(
             note="VISTA-3D submission raised an exception — segmentation skipped, no values invented.",
             warnings=label_warnings + [f"{type(exc).__name__}: {exc}"],
         )
+
+
+# Default cardiac / great-vessel classes to request (heart + aorta resolve to
+# verified labels; chamber names collapse to the single heart label 115).
+DEFAULT_CARDIAC_CLASSES = ["heart", "aorta"]
+
+
+async def _get(url: str) -> Any:
+    import httpx
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, headers=_headers(), timeout=_timeout())
+    resp.raise_for_status()
+    return resp
+
+
+async def poll_until_done(
+    status_url: str, *, interval_s: float = 3.0, max_wait_s: float = 90.0
+) -> dict[str, Any]:
+    """Poll a job's status URL until completed/failed or timeout. Never raises."""
+    import asyncio
+
+    waited = 0.0
+    last: dict[str, Any] = {"status": "unknown"}
+    while waited <= max_wait_s:
+        try:
+            resp = await _get(status_url)
+            last = resp.json()
+        except Exception as exc:
+            return {"status": "poll_error", "error": f"{type(exc).__name__}: {exc}"}
+        if str(last.get("status", "")).lower() in ("completed", "failed", "error"):
+            return last
+        await asyncio.sleep(interval_s)
+        waited += interval_s
+    return {"status": "timeout", "last": last, "waited_s": waited}
+
+
+async def segment_ct_and_analyze(
+    file_bytes: bytes,
+    filename: str,
+    *,
+    file_id: Optional[str] = None,
+    target_classes: Optional[list[str]] = None,
+    max_wait_s: float = 90.0,
+) -> dict[str, Any]:
+    """Full CT path: submit -> poll -> metadata -> mask -> deterministic volumetry.
+
+    Returns a JSON-able dict suitable to embed as the ``__ct_segmentation__``
+    extraction artifact. Fail-safe: any disabled/unavailable/failed/timeout state
+    degrades to a labelled result with warnings and **no invented values**.
+    """
+    from python.hearttwin.tools.ct_volumetry import analyze_mask_bytes
+
+    classes = target_classes or DEFAULT_CARDIAC_CLASSES
+    submit = await run_segmentation(file_bytes, filename, classes, file_id=file_id)
+
+    base = {
+        "source": "vista3d",
+        "method": "ct_segmentation",
+        "filename": filename,
+        "file_id": file_id,
+        "job_id": submit.job_id,
+        "requested_classes": classes,
+        "submit_status": submit.status,
+        "warnings": list(submit.warnings),
+    }
+
+    if submit.status != "queued":
+        # disabled / unavailable / failed — honest passthrough, no crash.
+        base["status"] = submit.status
+        base["note"] = submit.note
+        return base
+
+    status = await poll_until_done(submit.status_url or "", max_wait_s=max_wait_s)
+    job_state = str(status.get("status", "")).lower()
+    if job_state != "completed":
+        base["status"] = job_state or "unknown"
+        base["note"] = "CT segmentation did not complete in time — no values invented."
+        if status.get("error_message"):
+            base["warnings"].append(str(status["error_message"]))
+        return base
+
+    # Fetch metadata + mask using server-provided absolute URLs.
+    metadata: dict[str, Any] = {}
+    try:
+        if submit.metadata_url:
+            metadata = (await _get(submit.metadata_url)).json()
+    except Exception as exc:
+        base["warnings"].append(f"metadata fetch failed: {type(exc).__name__}: {exc}")
+
+    output_labels = metadata.get("output_labels")
+    if isinstance(output_labels, list) and not output_labels:
+        base["status"] = "empty_mask"
+        base["note"] = ("Segmentation completed but no requested structures were in the CT field "
+                        "of view (empty mask) — no values invented.")
+        base["metadata"] = metadata
+        return base
+
+    try:
+        mask_bytes = (await _get(submit.result_url)).content if submit.result_url else b""
+    except Exception as exc:
+        base["status"] = "result_fetch_error"
+        base["warnings"].append(f"result fetch failed: {type(exc).__name__}: {exc}")
+        return base
+
+    analysis = analyze_mask_bytes(mask_bytes, metadata=metadata, provenance={"job_id": submit.job_id})
+    base["status"] = analysis.status  # "analyzed" | "unreadable_mask"
+    base["volumes"] = analysis.volumes
+    base["abnormalities"] = analysis.abnormalities
+    base["output_labels"] = analysis.output_labels
+    base["provenance"] = analysis.provenance
+    base["metadata"] = {k: metadata.get(k) for k in
+                        ("model_name", "model_version", "input_spacing", "input_shape",
+                         "output_labels", "runtime_seconds") if k in metadata}
+    base["warnings"].extend(analysis.warnings)
+    return base

@@ -48,7 +48,7 @@ from python.hearttwin.schemas import (
     RecoveryConfig,
 )
 from python.hearttwin.tools.storage import get_case, store_case
-from python.hearttwin.tools.model_config import get_copilot_model
+from python.hearttwin.tools.model_config import chat_tuning, get_copilot_model
 from python.hearttwin.tools.weave_trace import get_latest_run, get_trace_sink, weave_status
 
 # Phrases that, if emitted by the model, indicate it crossed the clinical
@@ -498,8 +498,7 @@ async def answer_case_question(case_id: str, question: str) -> dict[str, Any]:
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
             ],
-            temperature=0.2,
-            max_tokens=400,
+            **chat_tuning(answer_model, 400, 0.2),
         )
     except Exception as exc:
         trace_sink.finish_run(run_id, "failed", {"error": type(exc).__name__})
