@@ -913,7 +913,11 @@ export function HeartScene() {
               <span
                 className="ht-chip"
                 data-status={lowEf ? "warning" : "ok"}
-                title="Ejection fraction"
+                title={
+                  lowEf
+                    ? `Ejection fraction ${Math.round(efPct)}% — below 40% (reduced systolic function)`
+                    : `Ejection fraction ${Math.round(efPct)}% (normal range)`
+                }
               >
                 <Waveform weight="bold" className="size-3" />
                 {`EF ${Math.round(efPct)}%`}

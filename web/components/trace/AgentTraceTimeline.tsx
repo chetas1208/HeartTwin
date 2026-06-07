@@ -270,23 +270,38 @@ export function AgentTraceTimeline() {
             const st = span?.status ?? "pending";
             const Glyph = STATUS_ICON[st];
             const dur = span ? formatDuration(span.durationMs) : "";
+            const reason =
+              (st === "warning" || st === "failed") && span?.warnings?.length
+                ? span.warnings[0]
+                : null;
             return (
               <li
                 key={meta.name}
-                className="flex items-center gap-2.5 border-b border-[var(--ht-line)] py-1.5 last:border-0"
+                className="border-b border-[var(--ht-line)] py-1.5 last:border-0"
               >
-                <Glyph
-                  weight="bold"
-                  aria-hidden
-                  className={`size-3.5 flex-none ${st === "running" ? "animate-spin" : ""}`}
-                  style={{ color: STATUS_COLOR[st] }}
-                />
-                <span className="truncate text-[0.78rem] text-ink-2">
-                  {meta.displayName}
-                </span>
-                <span className="ht-mono ml-auto flex-none text-[0.66rem] text-muted">
-                  {dur || STATUS_LABEL[st]}
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <Glyph
+                    weight="bold"
+                    aria-hidden
+                    className={`size-3.5 flex-none ${st === "running" ? "animate-spin" : ""}`}
+                    style={{ color: STATUS_COLOR[st] }}
+                  />
+                  <span className="truncate text-[0.78rem] text-ink-2">
+                    {meta.displayName}
+                  </span>
+                  <span className="ht-mono ml-auto flex-none text-[0.66rem] text-muted">
+                    {dur || STATUS_LABEL[st]}
+                  </span>
+                </div>
+                {/* A warning/failed status NEVER shows without its reason. */}
+                {reason ? (
+                  <p
+                    className="mt-0.5 pl-6 text-[0.64rem] leading-snug"
+                    style={{ color: STATUS_COLOR[st] }}
+                  >
+                    {reason}
+                  </p>
+                ) : null}
               </li>
             );
           })}
