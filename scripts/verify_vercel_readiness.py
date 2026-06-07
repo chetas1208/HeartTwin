@@ -77,26 +77,35 @@ def _check_no_hardcoded_localhost(errors: list[str], warnings: list[str]) -> Non
     It is allowed only as a documented fallback (NEXT_PUBLIC_API_BASE).
     """
     offenders: list[str] = []
-    scan_dirs = ["app", "python/hearttwin"]
+    scan_dirs = ["web", "python/hearttwin"]
     allowed_substrings = (
         "NEXT_PUBLIC_API_BASE",  # documented fallback line
+        "DEFAULT_API_BASE",  # named dev default in the CopilotKit route
     )
+    # Prune dependency/build dirs so we only scan source (never node_modules).
+    skip_dirs = {"node_modules", ".next", ".nuxt", ".output", ".vercel",
+                 "__pycache__", ".pytest_cache", ".git"}
+    import os
+
     for d in scan_dirs:
         base = ROOT / d
         if not base.exists():
             continue
-        for p in base.rglob("*"):
-            if not p.is_file() or p.suffix not in {".ts", ".vue", ".js", ".py"}:
-                continue
-            try:
-                text = p.read_text(errors="ignore")
-            except Exception:  # noqa: BLE001
-                continue
-            for lineno, line in enumerate(text.splitlines(), 1):
-                if "localhost:8000" in line:
-                    if any(a in line for a in allowed_substrings):
-                        continue
-                    offenders.append(f"{p.relative_to(ROOT)}:{lineno}")
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [dn for dn in dirnames if dn not in skip_dirs]
+            for name in filenames:
+                p = pathlib.Path(dirpath) / name
+                if p.suffix not in {".ts", ".tsx", ".vue", ".js", ".py"}:
+                    continue
+                try:
+                    text = p.read_text(errors="ignore")
+                except Exception:  # noqa: BLE001
+                    continue
+                for lineno, line in enumerate(text.splitlines(), 1):
+                    if "localhost:8000" in line:
+                        if any(a in line for a in allowed_substrings):
+                            continue
+                        offenders.append(f"{p.relative_to(ROOT)}:{lineno}")
     if offenders:
         errors.append(
             "hardcoded localhost:8000 found as non-fallback API base: " + ", ".join(offenders)
@@ -120,12 +129,16 @@ def _check_no_committed_secrets_or_data(errors: list[str], warnings: list[str]) 
     if not _exists(".env.example"):
         errors.append(".env.example missing")
 
-    # Large files (committed datasets / binaries)
-    for p in ROOT.rglob("*"):
-        parts = set(p.parts)
-        if parts & {"node_modules", ".git", ".nuxt", ".output", ".vercel", "__pycache__", ".pytest_cache"}:
-            continue
-        if p.is_file():
+    # Large files (committed datasets / binaries). Prune heavy build/dep dirs
+    # from the walk itself so we never enumerate node_modules etc.
+    skip_dirs = {"node_modules", ".git", ".next", ".nuxt", ".output", ".vercel",
+                 "__pycache__", ".pytest_cache"}
+    import os
+
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for name in filenames:
+            p = pathlib.Path(dirpath) / name
             try:
                 size_mb = p.stat().st_size / (1024 * 1024)
             except OSError:
@@ -138,7 +151,7 @@ def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
 
-    required_root = ["package.json", "nuxt.config.ts", "vercel.json", "api/index.py",
+    required_root = ["package.json", "vercel.json", "api/index.py",
                      "python/hearttwin/api.py", ".env.example"]
     for rel in required_root:
         if not _exists(rel):

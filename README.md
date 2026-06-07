@@ -16,15 +16,22 @@ HeartTwin Lab accepts cardiac-related files (PDF reports, ECG images/CSV, echo/M
 
 ## Quick start
 
-One command, one port — Nuxt UI and Python `/api/v1` on the same origin (mirrors Vercel production):
+The frontend is a Next.js + CopilotKit app under `web/`; the backend is the
+FastAPI app under `python/hearttwin`. Run them as two processes:
 
 ```bash
 cp .env.example .env        # add your API keys (never commit .env)
-pnpm install
-pnpm dev                    # http://localhost:3001 — full app via `vercel dev`
+
+# 1. Backend (FastAPI) on :8000
+python -m uvicorn python.hearttwin.api:app --reload --port 8000
+
+# 2. Frontend (Next.js) on :3000
+cd web && pnpm install --ignore-workspace && pnpm dev   # http://localhost:3000
 ```
 
-Set `NUXT_PUBLIC_API_BASE=/api/v1` and `API_BASE=/api/v1` so the frontend talks to the API on the same port. Do **not** point production or unified dev at `localhost:8000`.
+Point the frontend at the backend with `NEXT_PUBLIC_API_BASE` (copy
+`web/.env.example` to `web/.env.local`; defaults to `http://localhost:8000/api/v1`).
+The CopilotKit chat route proxies to the backend's `/copilotkit` AG-UI endpoint.
 
 ## Environment variables
 
@@ -48,7 +55,7 @@ OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 WANDB_API_KEY=
 WANDB_ENTITY=
 WANDB_PROJECT=hearttwin-weavehacks
-NUXT_PUBLIC_WEAVE_PROJECT_URL=
+NEXT_PUBLIC_WEAVE_PROJECT_URL=
 
 # Storage
 BLOB_READ_WRITE_TOKEN=
@@ -58,12 +65,11 @@ UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 
 # API base
-NUXT_PUBLIC_API_BASE=/api/v1
-API_BASE=/api/v1
-
-# Backward compatibility only.
-# Do not use NEXT_PUBLIC_API_BASE inside Nuxt code except as fallback.
+# Public base used by the Next.js frontend (web/). Full origin for local dev,
+# deployed API URL in production.
 NEXT_PUBLIC_API_BASE=http://localhost:8000/api/v1
+# Server-side API base.
+API_BASE=/api/v1
 
 # VISTA-3D local/tunneled model endpoint
 VISTA3D_API_BASE=
@@ -72,13 +78,13 @@ VISTA3D_TIMEOUT_SECONDS=120
 VISTA3D_ENABLED=false
 
 # App
-NUXT_PUBLIC_APP_NAME=HeartTwin Lab
+NEXT_PUBLIC_APP_NAME=HeartTwin Lab
 HEARTTWIN_SAFETY_MODE=strict
 HEARTTWIN_TRACE_MODE=weave_with_local_fallback
 HEARTTWIN_REDIS_MEMORY_ENABLED=true
 ```
 
-Nuxt reads `NUXT_PUBLIC_API_BASE` first. `NEXT_PUBLIC_API_BASE` exists only as a backward-compatible fallback, and Vercel production should normally use `/api/v1`.
+The Next.js frontend reads `NEXT_PUBLIC_API_BASE` for REST + the SSE trace stream. `API_BASE` is the server-side base used inside the backend.
 
 Without any API keys, the app runs on local in-memory fallbacks and deterministic algorithms where possible. Weave, Redis, OpenAI, and VISTA-3D integrations all fail safely when disabled or unconfigured.
 
@@ -94,6 +100,7 @@ POST /api/v1/cases/{id}/simulate-recovery    stages 6-7: recovery orchestration 
 POST /api/v1/cases/{id}/self-improve         bounded harness improvement rerun
 GET  /api/v1/cases/{id}                      get full case state
 GET  /api/v1/cases/{id}/trace                get agent trace
+GET  /api/v1/cases/{id}/trace/stream         live agent trace (SSE)
 ```
 
 ## WeaveHacks 4 Alignment
@@ -104,14 +111,14 @@ Judging criteria mapping:
 - Creativity: cardiac digital twin + multi-agent scientific simulator
 - Harness sophistication: 8-agent staged orchestration with deterministic tools
 - Utility: educational/research simulation of cardiac operation and recovery scenarios
-- Technical execution: Nuxt 4 + Python serverless + 3D visualization + tested simulation engine
+- Technical execution: Next.js + CopilotKit + Python serverless + 3D visualization + tested simulation engine
 - Sponsor usage: W&B Weave traces/evals, optional OpenAI extraction, optional Redis memory
 
 Required W&B Weave setup:
 1. Create a W&B account.
 2. Set `WANDB_API_KEY`.
 3. Set `WANDB_PROJECT=hearttwin-weavehacks`.
-4. Optionally set `WANDB_ENTITY` or `NUXT_PUBLIC_WEAVE_PROJECT_URL`.
+4. Optionally set `WANDB_ENTITY` or `NEXT_PUBLIC_WEAVE_PROJECT_URL`.
 5. Run a case and click View Weave Project.
 
 If Weave is not configured, HeartTwin still records local JSON traces and eval scores.
@@ -164,19 +171,19 @@ BSA = sqrt(H × W / 3600)         [Mosteller]
 ## Tests
 
 ```bash
-pnpm test:py          # 110 Python tests
-pnpm check            # typecheck + lint + tests
+pnpm test:py          # Python backend tests
+pnpm build            # build the Next.js frontend (web/)
+pnpm verify:all       # env + repo + vercel checks, tests, and build
 ```
 
 ## Deploy to Vercel
 
-Deploy from the repository root. No subdirectory selection needed.
+Frontend and backend deploy as two pieces:
 
-```bash
-vercel deploy         # or connect repo in Vercel dashboard
-```
-
-The `vercel.json` at root configures the Nuxt frontend and Python serverless function routing automatically.
+- **Frontend** — a Vercel project rooted at `web/` (framework: Next.js).
+  Set `NEXT_PUBLIC_API_BASE` to the deployed backend URL.
+- **Backend** — the Python FastAPI app, deployed from the repo root. The root
+  `vercel.json` routes `/api/:path*` to the `api/index.py` serverless function.
 
 ## Safety Boundary
 

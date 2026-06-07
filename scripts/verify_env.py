@@ -15,12 +15,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+# Spec descriptions contain non-ASCII (e.g. "→"); force UTF-8 so printing
+# warnings does not crash on a legacy Windows console (cp1252).
+with contextlib.suppress(Exception):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 
 def _load_dotenv(path: pathlib.Path) -> None:
@@ -75,10 +82,10 @@ def main() -> int:
 
     example_problems = _check_env_example(ROOT / ".env.example")
 
-    # NUXT_PUBLIC_API_BASE presence (default exists, but warn if neither set)
-    if not (os.environ.get("NUXT_PUBLIC_API_BASE") or os.environ.get("API_BASE")):
+    # Public API base presence (default exists, but warn if neither set)
+    if not (os.environ.get("NEXT_PUBLIC_API_BASE") or os.environ.get("API_BASE")):
         report["warnings"].append(
-            "Neither NUXT_PUBLIC_API_BASE nor API_BASE set; defaulting to /api/v1"
+            "Neither NEXT_PUBLIC_API_BASE nor API_BASE set; defaulting to /api/v1"
         )
 
     if report["warnings"]:

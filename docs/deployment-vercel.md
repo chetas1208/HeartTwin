@@ -1,21 +1,27 @@
-# HeartTwin Lab — Vercel Root Deployment
+# HeartTwin Lab — Vercel Deployment
 
 > **Educational cardiac simulation only. Not for diagnosis or treatment decisions.**
 
-HeartTwin Lab deploys from the **repository root** to Vercel: the Nuxt 4 frontend
-(via Nitro) and the FastAPI Python backend (as a serverless function) live in one
-monorepo. No subdirectory selection is required.
+HeartTwin Lab deploys as **two pieces**:
 
-## Root deploy structure
+- **Frontend** — the Next.js + CopilotKit app under `web/`, deployed as a Vercel
+  project with **Root Directory = `web`** (framework preset: Next.js).
+- **Backend** — the FastAPI Python app, deployed from the **repository root** as a
+  Vercel serverless function (`api/index.py`). The root `vercel.json` routes
+  `/api/:path*` to it.
+
+The frontend reaches the backend over `NEXT_PUBLIC_API_BASE`, so the two can live
+in separate Vercel projects (or the backend can be hosted elsewhere — e.g. a
+container host — as long as CORS allows the frontend origin).
+
+## Backend: root deploy structure
 
 ```txt
-package.json        # Nuxt app + scripts
-pnpm-lock.yaml      # Node lockfile (Vercel uses --frozen-lockfile)
-nuxt.config.ts      # Nuxt + runtimeConfig (env → public config)
-vercel.json         # framework + rewrites /api → Python function
+vercel.json         # rewrites /api → Python function
 api/index.py        # serverless entrypoint: `from python.hearttwin.api import app`
 python/hearttwin/   # FastAPI app, 8 agents, deterministic tools
 pyproject.toml      # Python dependencies
+requirements.txt    # mirror of runtime deps
 .env.example        # documented env vars (no secrets)
 ```
 
@@ -26,14 +32,10 @@ from python.hearttwin.api import app as hearttwin_app
 app = hearttwin_app
 ```
 
-## vercel.json
+### Backend vercel.json
 
 ```json
 {
-  "framework": "nuxtjs",
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "devCommand": "pnpm dev:nuxt",
   "rewrites": [{ "source": "/api/:path*", "destination": "/api/index.py" }],
   "functions": { "api/index.py": { "maxDuration": 60, "memory": 1024 } }
 }
@@ -49,18 +51,25 @@ Verify locally before pushing:
 pnpm verify:vercel
 ```
 
-## Steps
+### Backend steps
 
 1. Push the repo to GitHub (public for WeaveHacks judging).
 2. In Vercel, **New Project → import the repo → Root Directory = `/` (root)**.
-   Framework preset: **Nuxt.js**.
 3. Set environment variables (below).
 4. Deploy. Confirm `GET /api/v1/health` returns `{"status":"ok"}`.
-5. Run the production smoke test (below).
 
-## Required / optional Vercel env vars
+## Frontend: web/ deploy
 
-Set these on the **Vercel project** (backend host). Secrets live server-side only.
+1. In Vercel, **New Project → import the same repo → Root Directory = `web`**.
+   Framework preset: **Next.js** (auto-detected; `web/vercel.json` pins it).
+2. Set `NEXT_PUBLIC_API_BASE` to the backend URL (e.g.
+   `https://your-backend.vercel.app/api/v1`) and `OPENAI_API_KEY` (the CopilotKit
+   chat brain). The CopilotKit route proxies to `${origin}/copilotkit`.
+3. Deploy. Open the app and confirm the case pipeline + live trace render.
+
+## Required / optional backend env vars
+
+Set these on the **backend** Vercel project. Secrets live server-side only.
 
 ### Required for full functionality (app still runs without them via fallbacks)
 
@@ -71,17 +80,17 @@ Set these on the **Vercel project** (backend host). Secrets live server-side onl
 | `WANDB_PROJECT` | Should be `hearttwin-weavehacks`. |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Redis memory. Missing → in-memory fallback. |
 
-### Public (safe to expose to the browser)
+### Public / API base
 
-| Var | Value |
-|---|---|
-| `NUXT_PUBLIC_API_BASE` | `/api/v1` (primary — preferred by Nuxt) |
-| `API_BASE` | `/api/v1` |
-| `NUXT_PUBLIC_APP_NAME` | `HeartTwin Lab` |
-| `NUXT_PUBLIC_WEAVE_PROJECT_URL` | public Weave project URL |
+| Var | Where | Value |
+|---|---|---|
+| `NEXT_PUBLIC_API_BASE` | frontend (`web`) | backend URL, e.g. `https://your-backend.vercel.app/api/v1` |
+| `API_BASE` | backend | `/api/v1` |
+| `NEXT_PUBLIC_APP_NAME` | frontend | `HeartTwin Lab` |
+| `NEXT_PUBLIC_WEAVE_PROJECT_URL` | frontend | public Weave project URL |
 
-> `NEXT_PUBLIC_API_BASE` is a **backward-compat fallback only**. Nuxt code prefers
-> `NUXT_PUBLIC_API_BASE`. No production code requires `http://localhost:8000`.
+> No production code requires `http://localhost:8000`; it is only a named dev
+> default in the CopilotKit route.
 
 ### Optional
 
@@ -104,25 +113,18 @@ Set these on the **Vercel project** (backend host). Secrets live server-side onl
   tensorflow, monai, opencv. `weave`/`wandb` are optional (`tracing` extra).
 - The function uses the default Node/Python runtime, not edge.
 
-## Nuxt / Nitro notes
-
-- `ssr: true`; build via `pnpm build`. Vercel auto-detects the Nuxt preset.
-- `runtimeConfig.public` exposes only non-secret values (app name, API base,
-  Weave project URL). Server-only secrets stay in `runtimeConfig` (not `public`).
-
 ## Confirm the deployment
 
 ```bash
-curl https://your-app.vercel.app/api/v1/health         # {"status":"ok"}
-curl https://your-app.vercel.app/api/v1/config          # no secrets
-curl https://your-app.vercel.app/api/v1/system-check    # honest integration status
-E2E_BASE_URL=https://your-app.vercel.app pnpm smoke:prod
+curl https://your-backend.vercel.app/api/v1/health         # {"status":"ok"}
+curl https://your-backend.vercel.app/api/v1/config          # no secrets
+curl https://your-backend.vercel.app/api/v1/system-check    # honest integration status
 ```
 
 ## What not to commit
 
-- `.env` (gitignored), any real API keys/tokens.
-- `node_modules/`, `.nuxt/`, `.output/`, `.vercel/`.
+- `.env` / `web/.env.local` (gitignored), any real API keys/tokens.
+- `node_modules/`, `web/.next/`, `.vercel/`.
 - Large/real datasets or media. Fixtures are tiny and synthetic only.
 
 ## Troubleshooting
@@ -131,6 +133,9 @@ E2E_BASE_URL=https://your-app.vercel.app pnpm smoke:prod
   heavy ML libs sneaked in. Weave is optional.
 - **API route not found (404 on `/api/...`)**: check `vercel.json` rewrite and
   that `api/index.py` imports the app. Run `pnpm verify:vercel`.
+- **Frontend can't reach backend / CORS error**: set `NEXT_PUBLIC_API_BASE` to the
+  backend URL and ensure FastAPI CORS allows the frontend origin (`api.py` uses
+  permissive CORS by default).
 - **Env vars missing**: app still runs via fallbacks; `/api/v1/system-check`
   `integrations` block will show `fallback`/`local_fallback`/`memory_fallback`.
 - **VISTA tunnel down**: set `VISTA3D_ENABLED=false`; extraction/operation continue.

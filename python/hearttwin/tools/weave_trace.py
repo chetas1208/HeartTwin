@@ -247,7 +247,7 @@ def get_latest_run(case_id: str) -> dict[str, Any] | None:
 
 
 def get_project_url() -> str | None:
-    explicit = os.environ.get("NUXT_PUBLIC_WEAVE_PROJECT_URL")
+    explicit = os.environ.get("NEXT_PUBLIC_WEAVE_PROJECT_URL")
     if explicit:
         return explicit
     entity = os.environ.get("WANDB_ENTITY")

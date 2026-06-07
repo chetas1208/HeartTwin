@@ -293,13 +293,17 @@ def test_required_phrase_present_in_api_safety_output() -> None:
 
 
 def test_required_phrase_present_in_frontend() -> None:
-    # The safety banner / landing copy must carry the boundary phrase.
+    # The safety banner / landing copy must carry the educational-simulation
+    # boundary (not a medical device, no diagnosis, no treatment).
     candidates = [
-        _ROOT / "app" / "components" / "safety" / "MedicalBoundaryBanner.vue",
-        _ROOT / "app" / "pages" / "index.vue",
+        _ROOT / "web" / "components" / "safety" / "SafetyBanner.tsx",
+        _ROOT / "web" / "app" / "page.tsx",
     ]
-    joined = "\n".join(p.read_text(errors="ignore") for p in candidates if p.is_file())
-    assert "Not for diagnosis or treatment decisions" in joined
+    joined = "\n".join(p.read_text(errors="ignore") for p in candidates if p.is_file()).lower()
+    assert joined, "no frontend safety surface found"
+    assert "not a medical device" in joined
+    assert "diagnos" in joined
+    assert "treatment" in joined
 
 
 def test_required_phrase_present_in_docs_or_readme() -> None:
