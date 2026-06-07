@@ -42,7 +42,7 @@ from python.hearttwin.schemas import (
 )
 from python.hearttwin.safety import CORE_SAFETY_PHRASE
 from python.hearttwin.tools.env_config import redis_memory_enabled
-from python.hearttwin.tools.model_config import get_recovery_model
+from python.hearttwin.tools.model_config import chat_tuning, get_recovery_model
 from python.hearttwin.tools.recovery_sim import (
     RecoveryScenarioResult,
     build_default_scenarios,
@@ -281,8 +281,7 @@ async def _llm_propose_scenario_configs(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.2,
-            max_tokens=1800,
+            **chat_tuning(model, 1800, 0.2),
         )
         content = (response.choices[0].message.content or "").strip()
 
@@ -1050,7 +1049,9 @@ async def run_recovery_agent(
     scenario_payloads = _build_scenario_payloads(sim_results, recovery_scenarios)
 
     return AgentResponse(
-        agent=_AGENT_ID,
+        # Frontend/orchestrator key (matches the 8 names in web/types/agents.ts +
+        # _AGENT_STAGE_NAMES). The internal _AGENT_ID stays on stage_result.agent_id.
+        agent="recovery_agent",
         status=AgentStatus.SUCCESS if not all_warnings else AgentStatus.WARNING,
         inputs_used=["cardiac_twin_state", "recovery_config"],
         outputs={
