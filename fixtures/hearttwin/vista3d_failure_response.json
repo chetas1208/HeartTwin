@@ -1,0 +1,12 @@
+{
+  "status": "failed",
+  "request_id": "vista-synthetic-fail",
+  "classes_detected": [],
+  "masks": [],
+  "measurements": {},
+  "preview_uri": null,
+  "warnings": [
+    "Synthetic VISTA endpoint failure for test coverage."
+  ],
+  "confidence": null
+}

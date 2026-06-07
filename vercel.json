@@ -2,7 +2,7 @@
   "framework": "nuxtjs",
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install --frozen-lockfile",
-  "devCommand": "pnpm dev:nuxt",
+  "devCommand": "pnpm dev",
   "rewrites": [
     {
       "source": "/api/:path*",

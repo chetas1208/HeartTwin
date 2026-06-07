@@ -36,6 +36,9 @@ class DayState:
     uncertainty_high: float
 
 
+SIMULATION_LABEL = "bounded educational simulation, not a treatment recommendation"
+
+
 @dataclass
 class RecoveryScenarioResult:
     scenario_type: str
@@ -46,6 +49,7 @@ class RecoveryScenarioResult:
     simulation_note: str = (
         f"{CORE_SAFETY_PHRASE} This is a simulated recovery trajectory."
     )
+    simulation_label: str = SIMULATION_LABEL
 
 
 def _clamp(value: float, min_val: float, max_val: float) -> float:

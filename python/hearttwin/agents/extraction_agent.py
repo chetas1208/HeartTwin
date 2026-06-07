@@ -17,6 +17,9 @@ from python.hearttwin.tools.image_extract import extract_from_image
 from python.hearttwin.tools.pdf_extract import extract_pdf_text
 from python.hearttwin.tools.weave_trace import TraceContext
 
+_AGENT_ID = "multimodal_extraction"
+_AGENT_NAME = "Multimodal Extraction Agent"
+
 
 async def run_extraction_agent(
     files: list[dict],

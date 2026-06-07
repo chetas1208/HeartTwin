@@ -19,9 +19,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from python.hearttwin.safety import CORE_SAFETY_PHRASE, DISCLAIMER
-from python.hearttwin.schemas import AgentResponse, AgentStatus, CaseRecord, UploadedFile
+from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentStageResult, CaseRecord, UploadedFile
 from python.hearttwin.tools.model_config import get_intake_model
-from python.hearttwin.tools.weave_trace import TraceContext
+from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _INTAKE_AGENT_ID = "intake_safety"
 _INTAKE_AGENT_NAME = "Intake & Safety Agent"
@@ -84,26 +84,6 @@ class IntakeOutput(BaseModel):
     pii_redaction_applied: bool
     next_allowed_actions: list[str]
     warnings: list[str]
-
-
-class AgentStageResult(BaseModel):
-    agent_id: str
-    agent_name: str
-    model_used: str | None
-    status: Literal["success", "warning", "failed", "skipped"]
-    started_at: str
-    finished_at: str
-    latency_ms: float
-    inputs_used: list[str]
-    tools_called: list[str]
-    output_summary: str
-    structured_output: dict[str, Any]
-    warnings: list[str]
-    confidence: float
-    source_refs: list[dict[str, Any]]
-    safety_flags: list[str]
-    weave_call_id: str | None
-    local_trace_id: str | None
 
 
 @dataclass(frozen=True)
@@ -627,5 +607,4 @@ def _summarize(text: str, max_chars: int = 180) -> str:
     return f"{compact[: max_chars - 3]}..."
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+_utc_now = utc_now

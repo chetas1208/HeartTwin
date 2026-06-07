@@ -1,0 +1,21 @@
+{
+  "fixture_id": "manual_baseline",
+  "description": "Baseline cardiac function simulation input (synthetic, non-PHI).",
+  "label": "baseline simulation input",
+  "user_vitals": {
+    "heart_rate_bpm": 72,
+    "systolic_bp_mmhg": 120,
+    "diastolic_bp_mmhg": 80,
+    "edv_ml": 120,
+    "esv_ml": 50,
+    "oxygen_saturation_pct": 98
+  },
+  "expected_deterministic": {
+    "sv_ml": 70.0,
+    "ef_pct": 58.33,
+    "co_l_min": 5.04,
+    "map_mmhg": 93.33,
+    "rr_interval_ms": 833.33
+  },
+  "safety_note": "Educational cardiac simulation only. Not for diagnosis or treatment decisions."
+}

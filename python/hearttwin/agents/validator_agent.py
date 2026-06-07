@@ -21,9 +21,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from python.hearttwin.schemas import AgentResponse, AgentStatus
+from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentStageResult
 from python.hearttwin.tools.model_config import get_validator_model
-from python.hearttwin.tools.weave_trace import TraceContext
+from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _VALIDATOR_AGENT_ID = "evidence_validator"
 _VALIDATOR_AGENT_NAME = "Evidence Validator Agent"
@@ -72,26 +72,6 @@ class ValidatorOutput(BaseModel):
     invalid_fields: list[str]
     warnings: list[str]
     data_quality_score: float
-
-
-class AgentStageResult(BaseModel):
-    agent_id: str
-    agent_name: str
-    model_used: str | None
-    status: Literal["success", "warning", "failed", "skipped"]
-    started_at: str
-    finished_at: str
-    latency_ms: float
-    inputs_used: list[str]
-    tools_called: list[str]
-    output_summary: str
-    structured_output: dict[str, Any]
-    warnings: list[str]
-    confidence: float
-    source_refs: list[dict[str, Any]]
-    safety_flags: list[str]
-    weave_call_id: str | None
-    local_trace_id: str | None
 
 
 # ---------------------------------------------------------------------------
@@ -1080,5 +1060,4 @@ def _dedupe(values: list[str]) -> list[str]:
     return out
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+_utc_now = utc_now

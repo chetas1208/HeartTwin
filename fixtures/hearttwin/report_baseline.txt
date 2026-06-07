@@ -1,0 +1,8 @@
+Synthetic educational cardiac report.
+Heart rate: 72 bpm.
+Blood pressure: 120/80 mmHg.
+End-diastolic volume: 120 mL.
+End-systolic volume: 50 mL.
+Reported ejection fraction: 58%.
+Oxygen saturation: 98%.
+This synthetic text is for software testing only.

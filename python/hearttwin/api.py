@@ -44,6 +44,16 @@ from python.hearttwin.schemas import (
 )
 from python.hearttwin.tools.storage import get_case, get_file, store_case, store_file
 from python.hearttwin.tools.env_config import validate_environment
+from python.hearttwin.tools.model_config import (
+    get_intake_model,
+    get_extraction_model,
+    get_validator_model,
+    get_state_builder_model,
+    get_electrophysiology_model,
+    get_hemodynamics_model,
+    get_recovery_model,
+    get_evaluator_model,
+)
 from python.hearttwin.tools.weave_trace import get_latest_run, get_traces, weave_status
 
 app = FastAPI(
@@ -84,6 +94,53 @@ async def health() -> HealthResponse:
 
 
 # ---------------------------------------------------------------------------
+# Config — safe public metadata (no secrets)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/v1/config")
+async def get_config() -> dict:
+    """Return non-secret system configuration for UI/harness introspection.
+
+    Never exposes API keys, tokens, or credentials.
+    """
+    import os
+
+    wandb_key = os.environ.get("WANDB_API_KEY", "")
+    upstash_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
+    upstash_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+    vista_enabled = os.environ.get("VISTA3D_ENABLED", "false").lower() == "true"
+    vista_base = os.environ.get("VISTA3D_API_BASE", "")
+
+    return {
+        "app_name": "HeartTwin Lab",
+        "api_base": "/api/v1",
+        "weave": {
+            "configured": bool(wandb_key),
+            "project": os.environ.get("WANDB_PROJECT", "hearttwin-weavehacks"),
+            "entity": os.environ.get("WANDB_ENTITY", ""),
+        },
+        "redis": {
+            "configured": bool(upstash_url and upstash_token),
+        },
+        "vista3d": {
+            "enabled": vista_enabled,
+            "configured": bool(vista_base),
+        },
+        "models": {
+            "intake": get_intake_model(),
+            "extraction": get_extraction_model(),
+            "validator": get_validator_model(),
+            "state_builder": get_state_builder_model(),
+            "electrophysiology": get_electrophysiology_model(),
+            "hemodynamics": get_hemodynamics_model(),
+            "recovery": get_recovery_model(),
+            "evaluator": get_evaluator_model(),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # System check  — golden case A validation
 # ---------------------------------------------------------------------------
 
@@ -103,22 +160,97 @@ _GOLDEN_EXPECTED = {
 }
 
 
+def _scan_for_secrets(payload: Any) -> list[str]:
+    """Return the names of any secret env vars whose real value leaks in payload.
+
+    Used to assert that public responses never expose configured secrets. Only
+    flags secrets that actually have a non-trivial value set in the environment.
+    """
+    import json as _json
+    import os
+
+    from python.hearttwin.tools.env_spec import SECRET_ENV_VARS
+
+    try:
+        blob = _json.dumps(payload, default=str)
+    except Exception:  # noqa: BLE001
+        blob = str(payload)
+
+    leaked: list[str] = []
+    for name in SECRET_ENV_VARS:
+        value = os.environ.get(name, "")
+        if value and len(value) >= 8 and value in blob:
+            leaked.append(name)
+    return leaked
+
+
+def _integration_status() -> dict[str, str]:
+    """Map current env to honest integration status strings (no secrets)."""
+    import os
+
+    openai_status = "configured" if os.environ.get("OPENAI_API_KEY") else "fallback"
+
+    weave_configured = bool(os.environ.get("WANDB_API_KEY"))
+    weave_status_str = "configured" if weave_configured else "local_fallback"
+
+    redis_configured = bool(
+        os.environ.get("UPSTASH_REDIS_REST_URL") and os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+    )
+    redis_status_str = "configured" if redis_configured else "memory_fallback"
+
+    vista_enabled = os.environ.get("VISTA3D_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on", "enabled"
+    }
+    vista_base = os.environ.get("VISTA3D_API_BASE")
+    if not vista_enabled:
+        vista_status_str = "disabled"
+    elif vista_base:
+        vista_status_str = "configured"
+    else:
+        vista_status_str = "warning"
+
+    return {
+        "openai": openai_status,
+        "weave": weave_status_str,
+        "redis": redis_status_str,
+        "vista3d": vista_status_str,
+    }
+
+
 @app.get("/api/v1/system-check")
 async def system_check() -> dict:
     """End-to-end deterministic health check using golden case vitals.
 
     Creates an ephemeral (not persisted) case, runs the full pipeline with
-    known inputs, and validates outputs against expected values. Safe to
-    call at any time — no storage side effects.
+    known inputs, and validates outputs against expected values. Reports honest
+    fallback states for optional integrations — never fakes success.
     """
     from python.hearttwin.tools.cardiac_state import (
         compute_cardiac_output,
         compute_ejection_fraction,
         compute_map,
+        compute_rr_from_hr,
         compute_stroke_volume,
     )
 
-    results: dict[str, dict] = {}
+    checks: list[dict] = []
+    warnings: list[str] = []
+    metrics: dict = {}
+
+    def _add(name: str, status: str, message: str) -> None:
+        checks.append({"name": name, "status": status, "message": message})
+
+    # --- 0. API health & config safety ---
+    _add("api_health", "ok", "API reachable")
+    try:
+        cfg = await get_config()
+        leaked = _scan_for_secrets(cfg)
+        if leaked:
+            _add("config_safe", "failed", f"config exposed secret-like values: {leaked}")
+        else:
+            _add("config_safe", "ok", "config endpoint exposes no secrets")
+    except Exception as exc:  # noqa: BLE001
+        _add("config_safe", "failed", f"config check error: {exc}")
 
     # --- 1. Formula layer ---
     try:
@@ -132,85 +264,120 @@ async def system_check() -> dict:
         ef = compute_ejection_fraction(edv, esv)
         co = compute_cardiac_output(hr, sv)
         map_val = compute_map(sbp, dbp)
+        rr = compute_rr_from_hr(hr)
 
+        metrics = {
+            "sv_ml": round(sv, 2),
+            "ef_pct": round(ef, 2),
+            "co_l_min": round(co, 2),
+            "map_mmhg": round(map_val, 2),
+            "rr_interval_ms": round(rr, 2),
+        }
         formula_ok = (
             abs(sv - _GOLDEN_EXPECTED["sv_ml"]) < 0.1
             and abs(ef - _GOLDEN_EXPECTED["ef_pct"]) < 0.1
             and abs(co - _GOLDEN_EXPECTED["co_l_min"]) < 0.05
             and abs(map_val - _GOLDEN_EXPECTED["map_mmhg"]) < 0.1
         )
-        results["formulas"] = {
-            "status": "ok" if formula_ok else "failed",
-            "sv_ml": round(sv, 2),
-            "ef_pct": round(ef, 2),
-            "co_l_min": round(co, 2),
-            "map_mmhg": round(map_val, 2),
-            "expected_sv_ml": _GOLDEN_EXPECTED["sv_ml"],
-            "expected_ef_pct": _GOLDEN_EXPECTED["ef_pct"],
-            "expected_co_l_min": _GOLDEN_EXPECTED["co_l_min"],
-            "expected_map_mmhg": _GOLDEN_EXPECTED["map_mmhg"],
-        }
-    except Exception as exc:
-        results["formulas"] = {"status": "failed", "error": str(exc)}
+        _add(
+            "formulas",
+            "ok" if formula_ok else "failed",
+            f"SV={metrics['sv_ml']} EF={metrics['ef_pct']} CO={metrics['co_l_min']} "
+            f"MAP={metrics['map_mmhg']} RR={metrics['rr_interval_ms']}",
+        )
+    except Exception as exc:  # noqa: BLE001
+        _add("formulas", "failed", f"formula error: {exc}")
 
     # --- 2. Full pipeline (ephemeral, not persisted) ---
+    case = None
     try:
         case = CaseRecord(status="created")
-        _, case = await run_extraction_pipeline(
-            case=case,
-            files=[],
-            user_vitals=_GOLDEN_VITALS,
+        _, case = await run_extraction_pipeline(case=case, files=[], user_vitals=_GOLDEN_VITALS)
+        _add(
+            "extraction",
+            "ok" if case.validated_fields else "failed",
+            f"{len(case.validated_fields)} validated fields",
         )
-        results["extraction"] = {
-            "status": "ok" if case.validated_fields else "failed",
-            "validated_field_count": len(case.validated_fields),
-        }
-    except Exception as exc:
-        results["extraction"] = {"status": "failed", "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001
+        _add("extraction", "failed", f"extraction error: {exc}")
 
     try:
+        if case is None:
+            raise RuntimeError("no case from extraction")
         _, viz_payload, eval_report = await run_operation_pipeline(case=case)
-        sim_ok = bool(viz_payload and "summary" in viz_payload)
-        sim_ef = viz_payload["summary"].get("ef_pct") if sim_ok else None
-        sim_co = viz_payload["summary"].get("cardiac_output_l_min") if sim_ok else None
-        results["simulation"] = {
-            "status": "ok" if sim_ok else "failed",
-            "ef_pct": round(sim_ef, 2) if sim_ef else None,
-            "co_l_min": round(sim_co, 3) if sim_co else None,
-            "has_pv_loop": bool(viz_payload.get("pv_loop")) if sim_ok else False,
-            "has_cardiac_cycle": bool(viz_payload.get("cardiac_cycle")) if sim_ok else False,
-        }
-    except Exception as exc:
-        results["simulation"] = {"status": "failed", "error": str(exc)}
+        summary = (viz_payload or {}).get("summary", {})
+        sim_ok = bool(viz_payload and summary and viz_payload.get("pv_loop"))
+        _add(
+            "operation",
+            "ok" if sim_ok else "failed",
+            f"EF={summary.get('ef_pct')} CO={summary.get('cardiac_output_l_min')} "
+            f"pv_loop={bool(viz_payload.get('pv_loop'))}",
+        )
+        eval_scores = eval_report.get("eval_scores", {}) if isinstance(eval_report, dict) else {}
+        _add(
+            "evaluation",
+            "ok" if "overall_score" in eval_scores else "failed",
+            f"overall_score={eval_scores.get('overall_score')}",
+        )
+    except Exception as exc:  # noqa: BLE001
+        _add("operation", "failed", f"operation error: {exc}")
+        _add("evaluation", "failed", "evaluation skipped (operation failed)")
 
     try:
+        if case is None or not case.state:
+            raise RuntimeError("no state for recovery")
         _, scenarios, _ = await run_recovery_pipeline(case=case)
-        results["recovery"] = {
-            "status": "ok" if scenarios else "failed",
-            "scenario_count": len(scenarios),
-        }
-    except Exception as exc:
-        results["recovery"] = {"status": "failed", "error": str(exc)}
+        ok = bool(scenarios and 2 <= len(scenarios) <= 4)
+        _add("recovery", "ok" if ok else "warning", f"{len(scenarios)} scenarios")
+    except Exception as exc:  # noqa: BLE001
+        _add("recovery", "failed", f"recovery error: {exc}")
 
-    # --- 3. Safety layer ---
+    # --- 3. Trace / integrations (honest fallback reporting) ---
+    integrations = _integration_status()
+    _add("trace", "ok", f"weave={integrations['weave']}")
+    if integrations["weave"] == "local_fallback":
+        warnings.append("Weave not configured; using local trace fallback")
+    if integrations["redis"] == "memory_fallback":
+        warnings.append("Redis not configured; using in-memory fallback")
+    if integrations["openai"] == "fallback":
+        warnings.append("OpenAI not configured; deterministic fallbacks active")
+    if integrations["vista3d"] == "warning":
+        warnings.append("VISTA3D enabled but VISTA3D_API_BASE missing")
+
+    # --- 4. Safety layer ---
     try:
         from python.hearttwin.safety import check_request_safety
+
         blocked = False
         try:
             check_request_safety("what diagnosis do I have and what treatment should I take?")
-            blocked = False
-        except Exception:
+        except Exception:  # noqa: BLE001
             blocked = True
-        results["safety"] = {"status": "ok" if blocked else "failed", "blocks_diagnosis_requests": blocked}
-    except Exception as exc:
-        results["safety"] = {"status": "failed", "error": str(exc)}
+        _add(
+            "safety",
+            "ok" if blocked else "failed",
+            "blocks diagnosis/treatment requests" if blocked else "failed to block unsafe request",
+        )
+    except Exception as exc:  # noqa: BLE001
+        _add("safety", "failed", f"safety error: {exc}")
 
-    overall = "ok" if all(v.get("status") == "ok" for v in results.values()) else "degraded"
-    failed = [k for k, v in results.items() if v.get("status") != "ok"]
+    _add("safety_phrase", "ok", DISCLAIMER)
+
+    statuses = [c["status"] for c in checks]
+    if any(s == "failed" for s in statuses):
+        overall = "failed"
+    elif any(s == "warning" for s in statuses):
+        overall = "warning"
+    else:
+        overall = "ok"
+    failed = [c["name"] for c in checks if c["status"] == "failed"]
 
     return {
         "status": overall,
-        "checks": results,
+        "checks": checks,
+        "metrics": metrics,
+        "integrations": integrations,
+        "warnings": warnings,
         "failed_checks": failed,
         "golden_inputs": _GOLDEN_VITALS,
         "safety_disclaimer": DISCLAIMER,
@@ -272,6 +439,41 @@ async def get_trace(case_id: str) -> dict:
         },
         "safety_disclaimer": DISCLAIMER,
     }
+
+
+@app.get("/api/v1/cases/{case_id}/harness")
+async def get_harness(case_id: str) -> dict:
+    """Return harness metadata for a case: agent stage results, eval scores, Weave/Redis status."""
+    case_data = await get_case(case_id)
+    if not case_data:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    latest = get_latest_run(case_id)
+    run_id = latest.get("run_id") if latest else None
+    traces = get_traces(case_id)
+    wv = weave_status(run_id)
+
+    stage_results = case_data.get("stage_results", [])
+    eval_scores = case_data.get("eval_scores") or case_data.get("evaluation", {})
+    self_improve = case_data.get("self_improvement")
+
+    return add_disclaimer({
+        "case_id": case_id,
+        "stage_results": stage_results,
+        "eval_scores": eval_scores,
+        "self_improvement": self_improve,
+        "weave": {
+            **wv,
+            "latest_run_id": run_id,
+            "traced_stages_count": sum(1 for t in traces if t.get("kind") == "agent_stage"),
+            "traced_tool_calls_count": sum(1 for t in traces if t.get("kind") == "tool_call"),
+        },
+        "redis": {
+            "configured": bool(
+                __import__("os").environ.get("UPSTASH_REDIS_REST_URL")
+                and __import__("os").environ.get("UPSTASH_REDIS_REST_TOKEN")
+            ),
+        },
+    })
 
 
 # ---------------------------------------------------------------------------

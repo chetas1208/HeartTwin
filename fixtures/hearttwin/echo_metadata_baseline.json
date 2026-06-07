@@ -1,0 +1,14 @@
+{
+  "source": "synthetic_echo_metadata",
+  "modality": "echocardiogram",
+  "view": "apical_4_chamber",
+  "edv_ml": 120,
+  "esv_ml": 50,
+  "ejection_fraction_pct": 58,
+  "lv_tracing_available": true,
+  "frames": {
+    "end_diastole": 12,
+    "end_systole": 27
+  },
+  "safety_note": "Synthetic metadata inspired by public echo dataset structure. Not patient data. Not for diagnosis."
+}

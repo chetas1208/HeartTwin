@@ -1,0 +1,24 @@
+{
+  "status": "success",
+  "request_id": "vista-synthetic-001",
+  "classes_detected": [
+    "heart",
+    "left ventricle",
+    "right ventricle",
+    "myocardium"
+  ],
+  "masks": [
+    {
+      "class": "left ventricle",
+      "mask_uri": "synthetic://vista/lv-mask.nii.gz",
+      "volume_proxy_ml": 120
+    }
+  ],
+  "measurements": {
+    "lv_volume_proxy_ml": 120,
+    "myocardium_volume_proxy_ml": 155
+  },
+  "preview_uri": "synthetic://vista/preview.png",
+  "warnings": [],
+  "confidence": 0.82
+}

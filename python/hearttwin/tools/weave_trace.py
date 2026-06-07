@@ -335,6 +335,13 @@ def _file_metadata(item: Any) -> dict[str, Any]:
     }
 
 
+def utc_now() -> str:
+    """Return the current UTC time as an ISO-8601 string (shared utility)."""
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _dedupe(values: list[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []

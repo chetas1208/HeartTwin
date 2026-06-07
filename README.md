@@ -16,11 +16,15 @@ HeartTwin Lab accepts cardiac-related files (PDF reports, ECG images/CSV, echo/M
 
 ## Quick start
 
+One command, one port — Nuxt UI and Python `/api/v1` on the same origin (mirrors Vercel production):
+
 ```bash
-cp .env.example .env        # fill in optional API keys
+cp .env.example .env        # add your API keys (never commit .env)
 pnpm install
-pnpm dev                    # http://localhost:3000
+pnpm dev                    # http://localhost:3001 — full app via `vercel dev`
 ```
+
+Set `NUXT_PUBLIC_API_BASE=/api/v1` and `API_BASE=/api/v1` so the frontend talks to the API on the same port. Do **not** point production or unified dev at `localhost:8000`.
 
 ## Environment variables
 

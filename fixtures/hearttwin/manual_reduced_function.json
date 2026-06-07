@@ -1,0 +1,21 @@
+{
+  "fixture_id": "manual_reduced_function",
+  "description": "Reduced pump function simulation input (synthetic, non-PHI). Not a diagnosis.",
+  "label": "reduced pump function simulation input",
+  "user_vitals": {
+    "heart_rate_bpm": 88,
+    "systolic_bp_mmhg": 135,
+    "diastolic_bp_mmhg": 85,
+    "edv_ml": 150,
+    "esv_ml": 95,
+    "oxygen_saturation_pct": 96
+  },
+  "expected_deterministic": {
+    "sv_ml": 55.0,
+    "ef_pct": 36.67,
+    "co_l_min": 4.84,
+    "map_mmhg": 101.67,
+    "rr_interval_ms": 681.82
+  },
+  "safety_note": "Educational cardiac simulation only. Not for diagnosis or treatment decisions."
+}

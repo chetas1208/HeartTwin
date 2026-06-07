@@ -1,0 +1,21 @@
+{
+  "fixture_id": "manual_partial_data",
+  "description": "Partial data stress test (synthetic, non-PHI). EDV/ESV intentionally missing.",
+  "label": "partial data simulation input",
+  "user_vitals": {
+    "heart_rate_bpm": 92,
+    "systolic_bp_mmhg": 142,
+    "diastolic_bp_mmhg": 90,
+    "ejection_fraction_pct": 45
+  },
+  "expected_behavior": {
+    "no_crash": true,
+    "edv_available": false,
+    "esv_available": false,
+    "sv_invented_without_prior": false,
+    "warning_expected": true,
+    "operation": "runs_with_labeled_priors_or_blocks_with_reason",
+    "recovery_uncertainty": "high_or_blocked_with_reason"
+  },
+  "safety_note": "Educational cardiac simulation only. Not for diagnosis or treatment decisions."
+}

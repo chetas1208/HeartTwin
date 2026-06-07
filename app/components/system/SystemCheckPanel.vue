@@ -43,21 +43,36 @@
       </div>
 
       <!-- Individual checks -->
-      <div v-for="(check, key) in result.checks" :key="key" class="flex items-center justify-between py-1 border-b border-cardiac-navy-border/50 last:border-0">
-        <span class="text-xs font-mono text-cardiac-muted capitalize">{{ key }}</span>
+      <div v-for="check in result.checks" :key="check.name" class="flex items-center justify-between py-1 border-b border-cardiac-navy-border/50 last:border-0">
+        <span class="text-xs font-mono text-cardiac-muted capitalize">{{ check.name.replace(/_/g, ' ') }}</span>
         <div class="flex items-center gap-2">
-          <span v-if="check.ef_pct != null" class="text-xs font-mono text-cardiac-muted">EF {{ check.ef_pct }}%</span>
-          <span v-if="check.co_l_min != null" class="text-xs font-mono text-cardiac-muted">CO {{ check.co_l_min }}</span>
-          <span v-if="check.scenario_count != null" class="text-xs font-mono text-cardiac-muted">{{ check.scenario_count }} scenarios</span>
-          <span v-if="check.validated_field_count != null" class="text-xs font-mono text-cardiac-muted">{{ check.validated_field_count }} fields</span>
+          <span class="text-[10px] font-mono text-cardiac-muted/70 truncate max-w-[180px]" :title="check.message">{{ check.message }}</span>
           <span
             class="text-xs font-mono px-1.5 py-0.5 rounded"
             :class="check.status === 'ok'
               ? 'bg-green-900/40 text-green-400'
-              : 'bg-red-900/40 text-red-400'"
+              : check.status === 'warning'
+                ? 'bg-amber-900/40 text-amber-400'
+                : 'bg-red-900/40 text-red-400'"
           >
-            {{ check.status === 'ok' ? 'OK' : 'FAIL' }}
+            {{ check.status === 'ok' ? 'OK' : check.status === 'warning' ? 'WARN' : 'FAIL' }}
           </span>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div v-if="result.metrics && Object.keys(result.metrics).length" class="pt-2 mt-1 border-t border-cardiac-navy-border/50">
+        <p class="text-[10px] font-mono uppercase tracking-widest text-cardiac-muted/60 mb-1">Golden metrics</p>
+        <div class="flex flex-wrap gap-x-3 gap-y-1">
+          <span v-for="(val, key) in result.metrics" :key="key" class="text-[10px] font-mono text-cardiac-muted">{{ key }}: {{ val }}</span>
+        </div>
+      </div>
+
+      <!-- Integrations -->
+      <div v-if="result.integrations" class="pt-2 mt-1 border-t border-cardiac-navy-border/50">
+        <p class="text-[10px] font-mono uppercase tracking-widest text-cardiac-muted/60 mb-1">Integrations</p>
+        <div class="flex flex-wrap gap-x-3 gap-y-1">
+          <span v-for="(val, key) in result.integrations" :key="key" class="text-[10px] font-mono text-cardiac-muted">{{ key }}: {{ val }}</span>
         </div>
       </div>
     </div>
@@ -72,12 +87,16 @@ const error = ref<string | null>(null)
 const checkedAt = ref('')
 
 interface CheckResult {
+  name: string
   status: string
-  [key: string]: unknown
+  message: string
 }
 interface SystemCheckResponse {
   status: string
-  checks: Record<string, CheckResult>
+  checks: CheckResult[]
+  metrics?: Record<string, number>
+  integrations?: Record<string, string>
+  warnings?: string[]
   failed_checks: string[]
 }
 

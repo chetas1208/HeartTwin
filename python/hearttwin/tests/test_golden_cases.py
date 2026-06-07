@@ -250,7 +250,7 @@ class TestCaseC:
             "state_builder_agent",
             "hemodynamics_agent",
             "evaluator_agent",
-            "recovery_agent",
+            "recovery_orchestration",  # recovery_agent.py uses this ID
         ]
         for expected in expected_agents:
             assert expected in agent_names, f"Agent '{expected}' did not run"

@@ -1,0 +1,6 @@
+Synthetic educational cardiac report.
+Heart rate: 92 bpm.
+Blood pressure: 142/90 mmHg.
+Reported ejection fraction: 45%.
+EDV and ESV are not provided.
+This synthetic text is for software testing only.

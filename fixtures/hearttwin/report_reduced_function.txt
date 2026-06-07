@@ -1,0 +1,9 @@
+Synthetic educational cardiac report.
+Heart rate: 88 bpm.
+Blood pressure: 135/85 mmHg.
+End-diastolic volume: 150 mL.
+End-systolic volume: 95 mL.
+Reported ejection fraction: 37%.
+Oxygen saturation: 96%.
+Reported clinical terms may appear in real reports, but this fixture does not diagnose.
+This synthetic text is for software testing only.

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
@@ -281,6 +281,50 @@ class AgentResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     confidence: float = Field(0.0, ge=0.0, le=1.0)
     trace: list[AgentTraceStep] = Field(default_factory=list)
+
+
+class ToolCallRecord(BaseModel):
+    """Schema-bound record for a single deterministic tool invocation."""
+
+    tool_name: str
+    deterministic: bool = True
+    input_keys: list[str] = Field(default_factory=list)
+    output_keys: list[str] = Field(default_factory=list)
+    latency_ms: float = 0.0
+    status: Literal["success", "warning", "failed"] = "success"
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AgentStageResult(BaseModel):
+    """Schema-bound metadata record contributed by every agent stage.
+
+    Common fields are required; domain-specific optional fields use defaults
+    so the same class works for all 8 agents without subclassing.
+    """
+
+    agent_id: str
+    agent_name: str
+    model_used: str | None = None
+    status: Literal["success", "warning", "failed", "skipped"]
+    started_at: str
+    finished_at: str
+    latency_ms: float
+    inputs_used: list[str] = Field(default_factory=list)
+    tools_called: list[str] = Field(default_factory=list)
+    output_summary: str = ""
+    structured_output: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
+    source_refs: list[dict[str, Any]] = Field(default_factory=list)
+    safety_flags: list[str] = Field(default_factory=list)
+    weave_call_id: str | None = None
+    local_trace_id: str | None = None
+    # Recovery-specific (optional; unused by other agents)
+    scenario_count: int = 0
+    scenario_types: list[str] = Field(default_factory=list)
+    deterministic_tool_calls: int = 0
+    memory_patterns_used: list[str] = Field(default_factory=list)
+    uncertainty_status: str = ""
 
 
 # ---------------------------------------------------------------------------
