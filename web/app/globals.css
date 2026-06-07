@@ -70,10 +70,11 @@
   --ht-danger: var(--ht-accent-bright);
 
   /* ---- Radius scale (capped per codex over-round ban: cards <= 16px) ---- */
-  --ht-r-xs: 4px;
-  --ht-r-sm: 6px;
-  --ht-r-md: 10px;
-  --ht-r-lg: 14px;
+  /* Flat, clinical: square corners everywhere (pill kept only for status dots). */
+  --ht-r-xs: 0px;
+  --ht-r-sm: 0px;
+  --ht-r-md: 0px;
+  --ht-r-lg: 0px;
   --ht-r-pill: 999px;
 
   /* ---- Spacing rhythm ---- */
@@ -104,8 +105,8 @@
   --ht-dur-slow: 360ms;
 
   /* ---- Elevation (tinted to bg hue, single defined shadow, no ghost-card) ---- */
-  --ht-shadow-panel: 0 10px 30px -12px oklch(0.08 0.02 250 / 0.7);
-  --ht-shadow-raised: 0 18px 44px -16px oklch(0.06 0.02 250 / 0.78);
+  --ht-shadow-panel: none;
+  --ht-shadow-raised: none;
 }
 
 @theme inline {
@@ -165,18 +166,7 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background:
-    radial-gradient(
-      120% 80% at 82% -8%,
-      var(--ht-signal-soft),
-      transparent 46%
-    ),
-    radial-gradient(
-      90% 60% at 6% 0%,
-      var(--ht-accent-soft),
-      transparent 42%
-    ),
-    var(--ht-bg);
+  background: var(--ht-bg);
   color: var(--ht-ink);
   font-family: var(--font-sans);
   font-feature-settings: "cv01", "ss01";

@@ -839,7 +839,7 @@ export function HeartScene() {
       />
       <div className="ht-hairline" />
       <PanelBody className="pt-0">
-        <div className="relative h-full min-h-[260px] overflow-hidden rounded-[var(--ht-r-md)] border border-[var(--ht-line)] bg-[radial-gradient(120%_120%_at_50%_-10%,var(--ht-accent-soft),transparent_60%)]">
+        <div className="relative h-full min-h-[260px] overflow-hidden border border-[var(--ht-line)] bg-[var(--ht-surface-2)]">
           <HeartCanvasClient />
 
           {/* idle hint, fades out of the way once a case is running */}

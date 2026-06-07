@@ -1,18 +1,19 @@
 "use client";
 
 /*
- * CONTRACT: owns the console chrome and the responsive panel grid. Renders the
- *   header (brand lockup + live pipeline status + Weave slot), the main grid
- *   composing every domain panel, the CopilotDock, the footer, and the
- *   first-open DisclaimerModal (the mandatory safety boundary now lives there,
- *   not in a persistent banner). Also bootstraps cross-cutting wiring: the SSE
- *   trace stream (useTraceStream) and the initial Redis status snapshot.
+ * CONTRACT: owns the console chrome and the viewport-fit layout: a left rail
+ *   (case intake), a dominant center work surface that tabs between the Digital
+ *   Twin (3D) and Physiology Simulation (charts), and a right rail of compressed
+ *   observability (agent trace, evaluation, case memory). Also renders the
+ *   header, CopilotDock, footer, and the first-open DisclaimerModal (the safety
+ *   boundary lives there, not a persistent banner), and bootstraps the SSE trace
+ *   stream + initial Redis snapshot.
  * READS from store: caseId, status, redisStats (and wires the trace stream).
  * This is the foundation's layout. Sibling agents edit the individual panel
  *   files, NOT this grid. If a panel needs more or less space, coordinate here.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Heartbeat } from "@phosphor-icons/react";
 import { useHeartTwinStore, type PipelineStatus } from "@/lib/store";
 import { redisStats } from "@/lib/api";
@@ -49,10 +50,18 @@ function statusKind(status: PipelineStatus): string {
   return "running";
 }
 
+type CenterTab = "twin" | "sim";
+
+const CENTER_TABS: { id: CenterTab; label: string }[] = [
+  { id: "twin", label: "Digital Twin" },
+  { id: "sim", label: "Physiology Simulation" },
+];
+
 export function AppShell() {
   const status = useHeartTwinStore((s) => s.status);
   const caseId = useHeartTwinStore((s) => s.caseId);
   const setRedisStats = useHeartTwinStore((s) => s.setRedisStats);
+  const [tab, setTab] = useState<CenterTab>("twin");
 
   // Live trace stream for the active case (no polling fallback).
   useTraceStream(caseId, { enabled: Boolean(caseId) });
@@ -104,36 +113,50 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-4 sm:px-6 lg:min-h-0 lg:overflow-hidden">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-3 py-3 sm:px-4 lg:min-h-0 lg:overflow-hidden">
         <div className="grid grid-cols-12 gap-3 lg:h-full lg:min-h-0">
-          {/* Left column: intake + agent trace */}
-          <div className="col-span-12 flex flex-col gap-3 lg:col-span-4 lg:min-h-0">
-            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
-              <ErrorBoundary name="Case intake"><CaseIntakePanel /></ErrorBoundary>
+          {/* Left rail: case intake */}
+          <div className="col-span-12 flex flex-col lg:col-span-3 lg:min-h-0 lg:[&>*]:h-full">
+            <ErrorBoundary name="Case intake"><CaseIntakePanel /></ErrorBoundary>
+          </div>
+
+          {/* Center: the cardiac work surface — tabbed twin / simulation */}
+          <div className="col-span-12 flex flex-col border border-[var(--ht-line)] bg-[var(--ht-surface-1)] lg:col-span-6 lg:min-h-0">
+            <div
+              role="tablist"
+              aria-label="Cardiac view"
+              className="flex flex-none border-b border-[var(--ht-line)]"
+            >
+              {CENTER_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={tab === t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`-mb-px border-b-2 px-4 py-2.5 text-[0.82rem] font-medium transition-colors ${
+                    tab === t.id
+                      ? "border-accent-bright text-ink"
+                      : "border-transparent text-muted hover:text-ink-2"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
-              <ErrorBoundary name="Agent trace"><AgentTraceTimeline /></ErrorBoundary>
+            <div className="min-h-0 flex-1 [&>*]:h-full [&_.ht-panel]:border-0">
+              {tab === "twin" ? (
+                <ErrorBoundary name="Cardiac viewport"><HeartScene /></ErrorBoundary>
+              ) : (
+                <ErrorBoundary name="Simulation charts"><SimulationCharts /></ErrorBoundary>
+              )}
             </div>
           </div>
 
-          {/* Center column: the simulation work surface */}
-          <div className="col-span-12 flex flex-col gap-3 lg:col-span-5 lg:min-h-0">
-            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
-              <ErrorBoundary name="Cardiac viewport"><HeartScene /></ErrorBoundary>
-            </div>
-            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
-              <ErrorBoundary name="Simulation charts"><SimulationCharts /></ErrorBoundary>
-            </div>
-          </div>
-
-          {/* Right column: evaluation + case memory */}
-          <div className="col-span-12 flex flex-col gap-3 lg:col-span-3 lg:min-h-0">
-            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
-              <ErrorBoundary name="Evaluation"><EvalScorecard /></ErrorBoundary>
-            </div>
-            <div className="lg:min-h-0 lg:flex-1 lg:[&>*]:h-full">
-              <ErrorBoundary name="Redis case memory"><RedisStatsRail /></ErrorBoundary>
-            </div>
+          {/* Right rail: compressed observability — trace, evaluation, memory */}
+          <div className="col-span-12 grid gap-3 lg:col-span-3 lg:min-h-0 lg:grid-rows-3 lg:[&>*]:min-h-0 lg:[&>*]:h-full">
+            <ErrorBoundary name="Agent trace"><AgentTraceTimeline /></ErrorBoundary>
+            <ErrorBoundary name="Evaluation"><EvalScorecard /></ErrorBoundary>
+            <ErrorBoundary name="Redis case memory"><RedisStatsRail /></ErrorBoundary>
           </div>
         </div>
       </main>
