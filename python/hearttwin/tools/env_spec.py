@@ -83,11 +83,9 @@ ENV_SPEC: list[EnvVarSpec] = [
     # --- Storage ---
     EnvVarSpec("BLOB_READ_WRITE_TOKEN", "storage", secret=True,
                description="Vercel Blob token; missing → local metadata fallback."),
-    # --- Redis / Upstash ---
-    EnvVarSpec("UPSTASH_REDIS_REST_URL", "redis",
-               description="Upstash REST URL; missing → in-memory fallback."),
-    EnvVarSpec("UPSTASH_REDIS_REST_TOKEN", "redis", secret=True,
-               description="Upstash REST token; missing → in-memory fallback."),
+    # --- Redis ---
+    EnvVarSpec("REDIS_URL", "redis", secret=True,
+               description="Redis connection URL (redis:// or rediss://); missing → in-memory fallback."),
     # --- API base ---
     EnvVarSpec("NEXT_PUBLIC_API_BASE", "api", default="/api/v1",
                description="Primary public API base used by the Next.js frontend."),

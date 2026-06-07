@@ -55,7 +55,7 @@ _DOCUMENTED = {
     "OPENAI_MODEL_RECOVERY", "OPENAI_MODEL_EVALUATOR", "OPENAI_MODEL_FAST",
     "OPENAI_EMBEDDING_MODEL", "WANDB_API_KEY", "WANDB_ENTITY", "WANDB_PROJECT",
     "NEXT_PUBLIC_WEAVE_PROJECT_URL", "BLOB_READ_WRITE_TOKEN",
-    "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN",
+    "REDIS_URL",
     "API_BASE", "NEXT_PUBLIC_API_BASE", "VISTA3D_API_BASE", "VISTA3D_API_KEY",
     "VISTA3D_TIMEOUT_SECONDS", "VISTA3D_ENABLED", "NEXT_PUBLIC_APP_NAME",
     "HEARTTWIN_SAFETY_MODE", "HEARTTWIN_TRACE_MODE", "HEARTTWIN_REDIS_MEMORY_ENABLED",
@@ -75,7 +75,7 @@ def test_spec_has_no_unexpected_extras() -> None:
 
 def test_secret_vars_marked() -> None:
     expected_secrets = {
-        "OPENAI_API_KEY", "WANDB_API_KEY", "UPSTASH_REDIS_REST_TOKEN",
+        "OPENAI_API_KEY", "WANDB_API_KEY", "REDIS_URL",
         "BLOB_READ_WRITE_TOKEN", "VISTA3D_API_KEY",
     }
     assert expected_secrets.issubset(set(SECRET_ENV_VARS))
@@ -206,7 +206,7 @@ async def test_config_endpoint_exposes_no_secrets() -> None:
     fake_secrets = {
         "OPENAI_API_KEY": "sk-fake-openai-key-1234567890",
         "WANDB_API_KEY": "wandb-fake-key-1234567890",
-        "UPSTASH_REDIS_REST_TOKEN": "upstash-fake-token-1234567890",
+        "REDIS_URL": "redis://default:fake-redis-pw-1234567890@example.com:6379",
         "BLOB_READ_WRITE_TOKEN": "blob-fake-token-1234567890",
         "VISTA3D_API_KEY": "vista-fake-key-1234567890",
     }
@@ -243,8 +243,7 @@ def test_app_safety_mode_default_strict() -> None:
 def test_redis_memory_enabled_honored_but_safe_without_creds() -> None:
     from python.hearttwin.tools.env_config import redis_memory_enabled
 
-    with env(HEARTTWIN_REDIS_MEMORY_ENABLED="true",
-             UPSTASH_REDIS_REST_URL=None, UPSTASH_REDIS_REST_TOKEN=None):
+    with env(HEARTTWIN_REDIS_MEMORY_ENABLED="true", REDIS_URL=None):
         assert redis_memory_enabled() is True
         from python.hearttwin.tools.env_config import validate_environment
         snap = validate_environment()

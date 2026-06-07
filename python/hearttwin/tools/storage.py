@@ -1,8 +1,8 @@
 """Storage tool: Vercel Blob or in-memory fallback.
 
 Files go to Vercel Blob when configured.
-Case state goes to Upstash Redis when configured.
-Falls back to in-memory for local development.
+Case state goes to Redis (standard protocol, REDIS_URL) when configured.
+Falls back to in-memory only when Redis is NOT configured.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import os
 import uuid
 from typing import Any, Optional
 
+from python.hearttwin.tools import redis_client
 from python.hearttwin.tools.env_config import redis_memory_enabled
 
 _MEMORY_STORE: dict[str, Any] = {}
@@ -59,70 +60,48 @@ async def get_file(file_id: str) -> Optional[bytes]:
     return _FILE_STORE.get(file_id)
 
 
+def _redis_active() -> bool:
+    return redis_memory_enabled() and redis_client.is_configured()
+
+
 async def store_case(case_id: str, case_data: dict) -> None:
-    """Store case record in Redis or memory."""
-    redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-
-    if redis_memory_enabled() and redis_url and redis_token:
-        try:
-            import httpx
-            payload = json.dumps(case_data)
-            # Upstash REST stores the request body verbatim as the value.
-            # Send the serialized JSON as raw content (NOT json=, which would
-            # wrap it in an extra layer of JSON quoting and corrupt round-trips).
-            response = await httpx.AsyncClient().post(
-                f"{redis_url}/set/case:{case_id}",
-                headers={
-                    "Authorization": f"Bearer {redis_token}",
-                    "Content-Type": "text/plain",
-                },
-                content=payload,
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            return
-        except Exception:
-            pass
-
+    """Store case record in Redis (when configured) or in-memory."""
+    if _redis_active():
+        client = redis_client.get_client()
+        # Errors surface (configured-but-broken Redis must not silently no-op).
+        await client.set(f"case:{case_id}", json.dumps(case_data))
+        return
     _MEMORY_STORE[f"case:{case_id}"] = case_data
 
 
 async def get_case(case_id: str) -> Optional[dict]:
     """Retrieve case record."""
-    redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-
-    if redis_memory_enabled() and redis_url and redis_token:
-        try:
-            import httpx
-            response = await httpx.AsyncClient().get(
-                f"{redis_url}/get/case:{case_id}",
-                headers={"Authorization": f"Bearer {redis_token}"},
-                timeout=10.0,
-            )
-            if response.status_code == 200:
-                data = response.json()
-                result = data.get("result")
-                if result:
-                    parsed = json.loads(result)
-                    # Tolerate legacy double-encoded values (a JSON string that
-                    # itself contains JSON) so old records still deserialize.
-                    if isinstance(parsed, str):
-                        parsed = json.loads(parsed)
-                    if isinstance(parsed, dict):
-                        return parsed
-        except Exception:
-            pass
-
+    if _redis_active():
+        client = redis_client.get_client()
+        raw = await client.get(f"case:{case_id}")
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        # Tolerate legacy double-encoded values so old records still load.
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed)
+        return parsed if isinstance(parsed, dict) else None
     return _MEMORY_STORE.get(f"case:{case_id}")
 
 
 async def list_cases() -> list[str]:
-    """List all case IDs (memory only for now)."""
+    """List all case IDs from Redis (when configured) or memory."""
+    if _redis_active():
+        client = redis_client.get_client()
+        keys = await client.keys("case:*")
+        return [str(k).replace("case:", "") for k in keys]
     return [k.replace("case:", "") for k in _MEMORY_STORE if k.startswith("case:")]
 
 
 async def delete_case(case_id: str) -> None:
     """Delete a case record."""
+    if _redis_active():
+        client = redis_client.get_client()
+        await client.delete(f"case:{case_id}")
+        return
     _MEMORY_STORE.pop(f"case:{case_id}", None)
