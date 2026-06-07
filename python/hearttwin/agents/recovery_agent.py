@@ -142,29 +142,22 @@ class RecoveryOutput(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _redis_config() -> tuple[str, str] | None:
+def _redis():
+    """Shared async Redis client, or None when memory is disabled/unconfigured."""
+    from python.hearttwin.tools import redis_client
+
     if not redis_memory_enabled():
         return None
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    return (url, token) if (url and token) else None
+    return redis_client.get_client()
 
 
 async def _redis_get(key: str) -> Any | None:
     """Read a Redis key as JSON. Returns None on any error or missing key."""
-    config = _redis_config()
-    if config is None:
+    client = _redis()
+    if client is None:
         return None
-    url, token = config
     try:
-        import httpx
-
-        resp = await httpx.AsyncClient().get(
-            f"{url}/get/{key}",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=5.0,
-        )
-        result = resp.json().get("result")
+        result = await client.get(key)
         if result:
             return json.loads(result)
     except Exception:
@@ -174,22 +167,11 @@ async def _redis_get(key: str) -> Any | None:
 
 async def _redis_set(key: str, value: Any) -> bool:
     """Write a value to Redis as a JSON string. Returns True on success."""
-    config = _redis_config()
-    if config is None:
+    client = _redis()
+    if client is None:
         return False
-    url, token = config
     try:
-        import httpx
-
-        await httpx.AsyncClient().post(
-            f"{url}/set/{key}",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "text/plain",
-            },
-            content=json.dumps(value),
-            timeout=5.0,
-        )
+        await client.set(key, json.dumps(value))
         return True
     except Exception:
         return False
@@ -804,7 +786,7 @@ async def run_recovery_agent(
         outputs={
             "patterns_found": memory_patterns_used,
             "memory_context_keys": list(memory_context.keys()),
-            "redis_available": _redis_config() is not None,
+            "redis_available": _redis() is not None,
         },
         duration_ms=(time.time() - t_mem) * 1000,
     )

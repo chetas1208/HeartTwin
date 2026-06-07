@@ -30,6 +30,7 @@ import os
 import statistics
 from typing import Any, Optional
 
+from python.hearttwin.tools import redis_client
 from python.hearttwin.tools.env_config import redis_memory_enabled
 
 # In-memory fallback store (module-level, like tools/storage.py).
@@ -157,14 +158,11 @@ def suggest_priors_from_neighbors(
 # ---------------------------------------------------------------------------
 
 
-def _redis_config() -> Optional[tuple[str, str]]:
+def _redis():
+    """Shared async Redis client, or None when memory is unconfigured/disabled."""
     if not redis_memory_enabled():
         return None
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if url and token:
-        return url, token
-    return None
+    return redis_client.get_client()
 
 
 async def index_case(
@@ -176,65 +174,39 @@ async def index_case(
 ) -> bool:
     """Store a case profile for later retrieval.
 
-    Always writes to the in-memory index. When Upstash is configured, also
+    Always writes to the in-memory index. When Redis is configured, also
     best-effort persists to Redis. Returns True iff the Redis write succeeded.
     """
     record = {"case_id": case_id, "vector": list(vector), "summary": dict(summary)}
     _MEMORY_INDEX[case_id] = record
 
-    config = _redis_config()
-    if config is None:
+    client = _redis()
+    if client is None:
         return False
-
-    url, token = config
     try:
-        import httpx
-
-        headers = {"Authorization": f"Bearer {token}"}
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{url}/set/{namespace}:{case_id}",
-                headers=headers,
-                json=json.dumps(record),
-                timeout=10.0,
-            )
-            await client.post(
-                f"{url}/sadd/{namespace}:index/{case_id}",
-                headers=headers,
-                timeout=10.0,
-            )
+        await client.set(f"{namespace}:{case_id}", json.dumps(record))
+        await client.sadd(f"{namespace}:index", case_id)
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001 — best-effort cache, never fatal
         return False
 
 
 async def _hydrate_from_redis(namespace: str) -> dict[str, dict[str, Any]]:
     """Best-effort pull of all indexed case records from Redis. Never raises."""
-    config = _redis_config()
-    if config is None:
+    client = _redis()
+    if client is None:
         return {}
 
-    url, token = config
     hydrated: dict[str, dict[str, Any]] = {}
     try:
-        import httpx
-
-        headers = {"Authorization": f"Bearer {token}"}
-        async with httpx.AsyncClient() as client:
-            members_resp = await client.get(
-                f"{url}/smembers/{namespace}:index", headers=headers, timeout=10.0
-            )
-            case_ids = members_resp.json().get("result") or []
-            for case_id in case_ids:
-                if case_id in _MEMORY_INDEX:
-                    continue
-                value_resp = await client.get(
-                    f"{url}/get/{namespace}:{case_id}", headers=headers, timeout=10.0
-                )
-                raw = value_resp.json().get("result")
-                if raw:
-                    hydrated[case_id] = json.loads(raw)
-    except Exception:
+        case_ids = await client.smembers(f"{namespace}:index") or []
+        for case_id in case_ids:
+            if case_id in _MEMORY_INDEX:
+                continue
+            raw = await client.get(f"{namespace}:{case_id}")
+            if raw:
+                hydrated[case_id] = json.loads(raw)
+    except Exception:  # noqa: BLE001
         return hydrated
     return hydrated
 

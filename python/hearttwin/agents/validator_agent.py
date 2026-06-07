@@ -968,26 +968,9 @@ async def _summarize_conflicts_with_openai(
 
 
 async def _store_validation_memory(case_id: str, payload: dict[str, Any]) -> None:
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (url and token):
-        return
+    from python.hearttwin.tools import redis_client
 
-    try:
-        import httpx
-
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{url}/set/hearttwin:case:{case_id}:validation",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "text/plain",
-                },
-                content=json.dumps(payload),
-                timeout=10.0,
-            )
-    except Exception:
-        return
+    await redis_client.set_json(f"hearttwin:case:{case_id}:validation", payload)
 
 
 # ---------------------------------------------------------------------------

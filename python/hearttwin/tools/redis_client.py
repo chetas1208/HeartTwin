@@ -45,6 +45,21 @@ def get_client() -> Optional[Any]:
     return _CLIENT
 
 
+async def set_json(key: str, value: Any) -> bool:
+    """Best-effort JSON SET. Returns True if written, False if Redis is
+    unconfigured or the write fails (used for non-critical agent persistence)."""
+    import json
+
+    client = get_client()
+    if client is None:
+        return False
+    try:
+        await client.set(key, json.dumps(value, default=str))
+        return True
+    except Exception:  # noqa: BLE001 — best-effort persistence, never fatal
+        return False
+
+
 async def ping() -> bool:
     """True if a configured Redis answers PING. Raises if configured-but-broken."""
     client = get_client()

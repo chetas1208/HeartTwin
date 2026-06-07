@@ -15,6 +15,20 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 FIXTURE_DIR = REPO_ROOT / "fixtures" / "hearttwin"
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_redis(monkeypatch):
+    """Keep the suite hermetic: never touch a live Redis (a developer's shell
+    REDIS_URL or legacy Upstash vars), and reset the cached client per test.
+    A test that wants the Redis path can still set REDIS_URL in its own body."""
+    for var in ("REDIS_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    from python.hearttwin.tools import redis_client
+
+    redis_client.reset_client()
+    yield
+    redis_client.reset_client()
+
+
 def load_fixture_json(name: str) -> dict:
     return json.loads((FIXTURE_DIR / name).read_text())
 

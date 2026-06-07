@@ -241,24 +241,9 @@ async def _write_redis_operation(case_id: str, payload: dict) -> bool:
 
     if not redis_memory_enabled():
         return False
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (url and token):
-        return False
-    key = f"hearttwin:case:{case_id}:operation"
-    try:
-        import httpx
+    from python.hearttwin.tools import redis_client
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{url}/set/{key}",
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "text/plain"},
-                content=json.dumps(payload),
-                timeout=10.0,
-            )
-        return resp.status_code < 300
-    except Exception:
-        return False
+    return await redis_client.set_json(f"hearttwin:case:{case_id}:operation", payload)
 
 
 # ---------------------------------------------------------------------------

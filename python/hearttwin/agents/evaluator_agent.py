@@ -1184,18 +1184,13 @@ async def _store_eval_memory(
     scores: EvalScores,
 ) -> None:
     """Write eval result and agentic memory to Redis (Upstash REST)."""
-    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
-    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    if not (url and token):
+    from python.hearttwin.tools import redis_client
+
+    if not redis_client.is_configured():
         return
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "text/plain",
-    }
-
-    # Per-case eval result
-    case_payload = json.dumps({
+    # Per-case eval result.
+    case_payload = {
         "overall_score": scores.overall_score,
         "safety_compliance": scores.safety_compliance,
         "hallucination_risk": scores.hallucination_risk,
@@ -1205,56 +1200,28 @@ async def _store_eval_memory(
         "critic_finding_count": len(eval_output.critic_findings),
         "failed_checks": scores.failed_checks[:10],
         "warnings": scores.warnings[:10],
-    })
+    }
 
-    # Redacted agentic memory payloads
-    critic_patterns_payload = json.dumps({
+    # Redacted agentic memory payloads.
+    critic_patterns_payload = {
         "failed_checks": scores.failed_checks[:10],
-        "top_finding_categories": [
-            f.category for f in eval_output.critic_findings[:5]
-        ],
-    })
-    failed_checks_payload = json.dumps({
+        "top_finding_categories": [f.category for f in eval_output.critic_findings[:5]],
+    }
+    failed_checks_payload = {
         "failed_checks": scores.failed_checks[:15],
         "overall_score": scores.overall_score,
-    })
-    harness_fixes_payload = json.dumps({
-        "improvements": _harness_improvement_recommendations(
-            scores, {}, None
-        )[:5],
+    }
+    harness_fixes_payload = {
+        "improvements": _harness_improvement_recommendations(scores, {}, None)[:5],
         "safe_to_display": eval_output.safe_to_display,
-    })
+    }
 
-    try:
-        import httpx
-
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{url}/set/hearttwin:case:{case_id}:eval",
-                headers=headers,
-                content=case_payload,
-                timeout=8.0,
-            )
-            await client.post(
-                f"{url}/set/hearttwin:memory:critic_patterns",
-                headers=headers,
-                content=critic_patterns_payload,
-                timeout=8.0,
-            )
-            await client.post(
-                f"{url}/set/hearttwin:memory:failed_checks",
-                headers=headers,
-                content=failed_checks_payload,
-                timeout=8.0,
-            )
-            await client.post(
-                f"{url}/set/hearttwin:memory:successful_harness_fixes",
-                headers=headers,
-                content=harness_fixes_payload,
-                timeout=8.0,
-            )
-    except Exception:
-        return
+    await redis_client.set_json(f"hearttwin:case:{case_id}:eval", case_payload)
+    await redis_client.set_json("hearttwin:memory:critic_patterns", critic_patterns_payload)
+    await redis_client.set_json("hearttwin:memory:failed_checks", failed_checks_payload)
+    await redis_client.set_json(
+        "hearttwin:memory:successful_harness_fixes", harness_fixes_payload
+    )
 
 
 # ---------------------------------------------------------------------------
