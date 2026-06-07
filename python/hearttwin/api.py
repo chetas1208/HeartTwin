@@ -634,6 +634,100 @@ async def upload_file(case_id: str, file: UploadFile = File(...)) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Research ECG diagnostic screening (user-reachable, disclaimer-gated)
+# ---------------------------------------------------------------------------
+
+
+def _parse_ecg_csv(raw: bytes) -> tuple[Any, float]:
+    """Parse an ECG CSV into a (n_samples, 12) array + sampling rate.
+
+    Accepts `time_ms,ecg` (single lead -> placed at lead II) or a multi-column
+    matrix (>=12 -> first 12 leads used). Defaults to 100 Hz if no time column.
+    """
+    import csv as _csv
+    import io as _io
+    import numpy as np
+
+    text = raw.decode("utf-8", "replace")
+    rows = [r for r in _csv.reader(_io.StringIO(text)) if r]
+    if not rows:
+        raise ValueError("empty CSV")
+
+    def _isnum(x: str) -> bool:
+        try:
+            float(x)
+            return True
+        except ValueError:
+            return False
+
+    header = rows[0]
+    has_header = not all(_isnum(c) for c in header)
+    data_rows = rows[1:] if has_header else rows
+    mat = np.array([[float(c) for c in r if _isnum(c)] for r in data_rows if any(_isnum(c) for c in r)],
+                   dtype=np.float32)
+    if mat.ndim != 2 or mat.shape[0] < 10:
+        raise ValueError("need a numeric ECG matrix with >=10 rows")
+
+    fs = 100.0
+    cols_are = [c.lower() for c in header] if has_header else []
+    time_col = 0 if (cols_are and "time" in cols_are[0]) else None
+    if time_col is not None and mat.shape[1] >= 2:
+        diffs = np.diff(mat[:, time_col])
+        step = float(np.median(diffs)) if len(diffs) else 0.0
+        if step > 0:
+            fs = 1000.0 / step
+        sig = mat[:, 1:]
+    else:
+        sig = mat
+
+    n = sig.shape[0]
+    out = np.zeros((n, 12), dtype=np.float32)
+    if sig.shape[1] >= 12:
+        out[:] = sig[:, :12]
+    elif sig.shape[1] == 1:
+        out[:, 1] = sig[:, 0]  # lead II position
+    else:
+        out[:, : sig.shape[1]] = sig
+    return out, fs
+
+
+@app.post("/api/v1/ecg/diagnose")
+async def ecg_diagnose(file: UploadFile = File(...)) -> dict:
+    """Research ECG superclass screening (NORM/MI/STTC/CD/HYP).
+
+    Experimental research output, NOT a diagnosis and NOT a medical device.
+    Upload a CSV ECG waveform (`time_ms,ecg` single lead, or a 12-lead matrix).
+    """
+    content_type = file.content_type or ""
+    if not (content_type in ("text/csv", "application/vnd.ms-excel")
+            or (file.filename or "").lower().endswith(".csv")):
+        raise HTTPException(status_code=400, detail="Upload a CSV ECG waveform.")
+
+    raw = await file.read()
+    if len(raw) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File exceeds 50 MB limit")
+    try:
+        sig, fs = _parse_ecg_csv(raw)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=f"Could not parse ECG CSV: {exc}")
+
+    try:
+        from python.hearttwin.research.ecg_dx.classifier import EcgDxClassifier
+        clf = EcgDxClassifier.load()
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=503,
+            detail="Research ECG classifier is not trained on this deployment. "
+                   "Run prep_ptbxl_dx.py + python -m python.hearttwin.research.ecg_dx.train.",
+        )
+
+    result = clf.classify(sig, fs)
+    result["sampling_rate_hz"] = round(fs, 1)
+    result["n_samples"] = int(sig.shape[0])
+    return add_disclaimer(result)
+
+
+# ---------------------------------------------------------------------------
 # Stage 1-3: Extract
 # ---------------------------------------------------------------------------
 

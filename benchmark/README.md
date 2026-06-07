@@ -23,6 +23,12 @@ HeartTwinBench has **two halves**:
    0.95 vs 0.84; wins on rhythm-from-signal (+0.12) and safety (+0.50); ties on
    hemodynamics/provenance when the LLM is fairly prompted.
 
+4. **Diagnosis** (`run_dx_benchmark.py`) — a **research ECG classifier** scored on
+   **real PTB-XL diagnostic-superclass labels** (NORM/MI/STTC/CD/HYP), user-reachable
+   via `POST /api/v1/ecg/diagnose` with a disclaimer. See
+   **[`DIAGNOSIS.md`](./DIAGNOSIS.md)**. Scaffold result: macro-AUROC 0.836 (deep
+   SOTA on full PTB-XL ~0.93). Not a medical device.
+
 ---
 
 A reproducible benchmark for HeartTwin Lab with **1,069 cases** across five tasks.
