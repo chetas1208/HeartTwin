@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "$comment": "Backend-only project (repo root). The Next.js frontend deploys as a SEPARATE Vercel project with Root Directory = web. Python deps install automatically from requirements.txt; there is no Node build here.",
-  "buildCommand": "echo 'HeartTwin backend (Python serverless) — no Node build'",
+  "buildCommand": "echo 'HeartTwin backend (Python serverless) - no Node build'",
   "installCommand": "echo 'no Node dependencies at the repo root'",
   "rewrites": [
     {
