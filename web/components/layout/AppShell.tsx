@@ -58,6 +58,7 @@ const CENTER_TABS: { id: CenterTab; label: string }[] = [
 
 export function AppShell() {
   const status = useHeartTwinStore((s) => s.status);
+  const storeError = useHeartTwinStore((s) => s.error);
   const caseId = useHeartTwinStore((s) => s.caseId);
   const setRedisStats = useHeartTwinStore((s) => s.setRedisStats);
   const [tab, setTab] = useState<CenterTab>("twin");
@@ -84,11 +85,17 @@ export function AppShell() {
     <div className="flex min-h-[100dvh] flex-col bg-[var(--ht-line-strong)] lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden">
       {/* Slim status bar: live status (left), title (center), Weave (right). */}
       <header className="flex h-11 flex-none items-center justify-between gap-3 border-b-2 border-[var(--ht-line-strong)] bg-[var(--ht-surface-1)] px-3">
-        <span className="ht-chip flex-none" data-status={statusKind(status)}>
+        <span
+          className="ht-chip flex-none max-w-[42vw] truncate"
+          data-status={statusKind(status)}
+          title={status === "error" && storeError ? storeError : STATUS_LABEL[status]}
+        >
           <span
             className={`ht-chip-dot ${statusKind(status) === "running" ? "ht-pulse" : ""}`}
           />
-          {STATUS_LABEL[status]}
+          {status === "error" && storeError
+            ? `Run failed — ${storeError}`
+            : STATUS_LABEL[status]}
         </span>
         <div className="min-w-0 flex-1 text-center leading-tight">
           <div className="text-[0.82rem] font-semibold tracking-tight text-ink">

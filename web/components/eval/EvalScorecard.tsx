@@ -134,14 +134,32 @@ export function EvalScorecard() {
                 </li>
               );
             })}
-            {failedChecks.length > 0 || warnings.length > 0 ? (
-              <li className="ht-mono flex items-center gap-3 pt-2 text-[0.68rem] text-muted">
-                {failedChecks.length > 0 ? (
-                  <span className="text-accent-bright">{failedChecks.length} failed</span>
-                ) : null}
-                {warnings.length > 0 ? (
-                  <span className="text-warn">{warnings.length} warnings</span>
-                ) : null}
+            {/* Failed checks / warnings always list their reasons, never a
+                bare count or icon. */}
+            {failedChecks.length > 0 ? (
+              <li className="pt-2.5">
+                <p className="ht-eyebrow text-accent-bright">
+                  Failed checks · {failedChecks.length}
+                </p>
+                <ul className="mt-1 flex flex-col gap-1">
+                  {failedChecks.map((c) => (
+                    <li key={c} className="text-[0.64rem] leading-snug text-ink-2">
+                      · {c}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ) : null}
+            {warnings.length > 0 ? (
+              <li className="pt-2.5">
+                <p className="ht-eyebrow text-warn">Warnings · {warnings.length}</p>
+                <ul className="mt-1 flex flex-col gap-1">
+                  {warnings.map((w) => (
+                    <li key={w} className="text-[0.64rem] leading-snug text-ink-2">
+                      · {w}
+                    </li>
+                  ))}
+                </ul>
               </li>
             ) : null}
           </ol>

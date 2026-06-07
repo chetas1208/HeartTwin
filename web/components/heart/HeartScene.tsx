@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 import {
   useMotionValue,
   useReducedMotion,
@@ -668,6 +669,92 @@ function matchDamageDirection(location: string | null | undefined): Vector3 {
   return new Vector3(0.7, -0.3, 0.7).normalize();
 }
 
+/* ------------------------------------------------------------------ */
+/*  Finding markers: numbered callouts anchored to the affected wall.   */
+/* ------------------------------------------------------------------ */
+
+// severity -> [css token, oklch fallback] for the 3D marker color.
+const SEVERITY_TOKEN: Record<string, [string, string]> = {
+  severe: ["--ht-accent-bright", FALLBACK_PALETTE.accent],
+  moderate: ["--ht-warn", FALLBACK_PALETTE.warn],
+  mild: ["--ht-signal", FALLBACK_PALETTE.signal],
+  info: ["--ht-ink", FALLBACK_PALETTE.ink],
+  normal: ["--ht-ecg", FALLBACK_PALETTE.ecg],
+};
+
+// severity -> CSS color for the HTML readout (kept in one place).
+export const FINDING_SEVERITY_CSS: Record<string, string> = {
+  severe: "var(--ht-accent-bright)",
+  moderate: "var(--ht-warn)",
+  mild: "var(--ht-signal)",
+  info: "var(--ht-muted)",
+  normal: "var(--ht-ecg)",
+};
+
+function severityColor(sev: string): Color {
+  const [token, fallback] = SEVERITY_TOKEN[sev] ?? SEVERITY_TOKEN.info;
+  return new Color(readToken(token, fallback));
+}
+
+function FindingMarkers() {
+  const findings = useHeartTwinStore(
+    (s) => s.visualization?.cardiac_findings?.findings ?? null,
+  );
+  const live = useHeartTwinStore(
+    (s) => s.status === "operated" || s.status === "complete",
+  );
+
+  const markers = useMemo(() => {
+    if (!findings) return [];
+    return findings
+      .filter((f) => f.anchor)
+      .map((f, i) => ({
+        key: f.id,
+        index: i + 1,
+        // Sit just outside the unit heart wall along the finding's direction.
+        pos: new Vector3(f.anchor.x, f.anchor.y, f.anchor.z)
+          .normalize()
+          .multiplyScalar(1.22),
+        hex: `#${severityColor(f.severity).getHexString()}`,
+      }));
+  }, [findings]);
+
+  if (!live || markers.length === 0) return null;
+
+  return (
+    <>
+      {markers.map((m) => (
+        <group key={m.key} position={[m.pos.x, m.pos.y, m.pos.z]}>
+          <mesh>
+            <sphereGeometry args={[0.05, 16, 16]} />
+            <meshBasicMaterial color={m.hex} toneMapped={false} />
+          </mesh>
+          <Html center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+            <span
+              style={{
+                display: "grid",
+                placeItems: "center",
+                width: 16,
+                height: 16,
+                borderRadius: 999,
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: "#fff",
+                background: m.hex,
+                border: "1px solid rgba(255,255,255,0.7)",
+                fontFamily: "var(--font-ui), sans-serif",
+              }}
+            >
+              {m.index}
+            </span>
+          </Html>
+        </group>
+      ))}
+    </>
+  );
+}
+
 function SceneContents(inputs: BeatInputs) {
   const palette = useMemo(() => resolvePalette(), []);
   const background = useMemo(
@@ -693,6 +780,7 @@ function SceneContents(inputs: BeatInputs) {
       <Rig animate={inputs.animate} />
       <HeartBody inputs={inputs} />
       <BloodFlow inputs={inputs} />
+      <FindingMarkers />
     </>
   );
 }
@@ -806,6 +894,9 @@ export function HeartScene() {
   const efPct = useHeartTwinStore(
     (s) => s.visualization?.summary.ef_pct ?? null,
   );
+  const findings = useHeartTwinStore(
+    (s) => s.visualization?.cardiac_findings ?? null,
+  );
   const live = status === "operated" || status === "complete";
   const lowEf = efPct != null && efPct < 40;
 
@@ -822,7 +913,11 @@ export function HeartScene() {
               <span
                 className="ht-chip"
                 data-status={lowEf ? "warning" : "ok"}
-                title="Ejection fraction"
+                title={
+                  lowEf
+                    ? `Ejection fraction ${Math.round(efPct)}% — below 40% (reduced systolic function)`
+                    : `Ejection fraction ${Math.round(efPct)}% (normal range)`
+                }
               >
                 <Waveform weight="bold" className="size-3" />
                 {`EF ${Math.round(efPct)}%`}
@@ -841,6 +936,66 @@ export function HeartScene() {
       <PanelBody className="pt-0">
         <div className="relative h-full min-h-[260px] overflow-hidden border border-[var(--ht-line)] bg-[var(--ht-surface-2)]">
           <HeartCanvasClient />
+
+          {/* Findings readout: the numbered markers on the heart map to these
+              rows — region, observation, and reference codes for a clinician. */}
+          {live && findings && findings.findings.length > 0 ? (
+            <div className="absolute right-2 top-2 flex max-h-[calc(100%-1rem)] w-[58%] max-w-[300px] flex-col overflow-y-auto border border-[var(--ht-line)] bg-[color-mix(in_oklab,var(--ht-surface-1)_94%,transparent)]">
+              <div className="flex items-center justify-between border-b border-[var(--ht-line)] px-2.5 py-1.5">
+                <span className="ht-eyebrow">Findings · {findings.segment_model}</span>
+                <span className="ht-mono text-[0.6rem] text-faint">
+                  {findings.findings.length}
+                </span>
+              </div>
+              <ul className="flex flex-col">
+                {findings.findings.map((f, i) => (
+                  <li
+                    key={f.id}
+                    className="border-b border-[var(--ht-line)] px-2.5 py-1.5 last:border-0"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="grid size-4 flex-none place-items-center rounded-full text-[0.58rem] font-bold text-white"
+                        style={{ background: FINDING_SEVERITY_CSS[f.severity] ?? "var(--ht-muted)" }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="truncate text-[0.72rem] font-medium text-ink">
+                        {f.region}
+                      </span>
+                      <span
+                        className="ht-mono ml-auto flex-none text-[0.56rem] uppercase tracking-wide"
+                        style={{ color: FINDING_SEVERITY_CSS[f.severity] ?? "var(--ht-muted)" }}
+                      >
+                        {f.severity}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[0.64rem] leading-snug text-ink-2">
+                      {f.summary}
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {f.codes.map((c) => (
+                        <span
+                          key={`${c.system}:${c.code}`}
+                          title={`${c.system}: ${c.label}`}
+                          className="ht-mono border border-[var(--ht-line)] px-1 py-0.5 text-[0.56rem] text-muted"
+                        >
+                          {c.code}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : live && findings ? (
+            <div className="pointer-events-none absolute right-2 top-2 border border-[var(--ht-line)] bg-[color-mix(in_oklab,var(--ht-surface-1)_94%,transparent)] px-2.5 py-1.5">
+              <p className="text-[0.64rem] text-muted">No notable simulated findings.</p>
+              <p className="ht-mono text-[0.56rem] text-faint">
+                imaging: {findings.imaging_source}
+              </p>
+            </div>
+          ) : null}
 
           {/* idle hint, fades out of the way once a case is running */}
           {!live ? (

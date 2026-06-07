@@ -2,6 +2,7 @@
 results.json
 compare_results.json
 whole_system_results.json
+dx_results.json
 *.zip
 __pycache__/
 
