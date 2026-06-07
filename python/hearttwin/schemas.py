@@ -259,6 +259,9 @@ class CardiacTwinState(BaseModel):
     simulation_config: SimulationConfig = Field(default_factory=SimulationConfig)
     source_map: list[SourceMapEntry] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    # Optional CT segmentation payload (VISTA-3D): volumes + educational
+    # abnormality observations + provenance. None when no CT was provided.
+    ct_segmentation: Optional[dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------

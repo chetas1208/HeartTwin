@@ -242,6 +242,27 @@ def derive_findings(
             source="visualization.electrophysiology.qtc_ms",
         ))
 
+    # CT-derived observations from VISTA-3D segmentation (volumetric proxies
+    # only — single heart label, never chamber EF or a diagnosis).
+    ct = (state or {}).get("ct_segmentation") or {}
+    for abn in ct.get("abnormalities", []) or []:
+        if not isinstance(abn, dict):
+            continue
+        findings.append(_finding(
+            id=abn.get("id", "ct_observation"),
+            title=abn.get("title", "CT segmentation observation"),
+            region=abn.get("region", "Heart"),
+            territory=None,
+            aha_segments=[],
+            anchor={"x": 0.0, "y": 0.0, "z": 0.0},
+            severity=abn.get("severity", "info"),
+            summary=abn.get("summary", ""),
+            metric=abn.get("metric"),
+            codes=abn.get("codes", []),
+            source="ct_segmentation.vista3d",
+            educational=True,
+        ))
+
     return {
         "findings": findings,
         "imaging_source": _imaging_source(state),
