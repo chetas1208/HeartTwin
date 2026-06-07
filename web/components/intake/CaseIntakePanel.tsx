@@ -381,7 +381,7 @@ export function CaseIntakePanel() {
     // shrink-0 stops the surrounding flex column from compressing this panel
     // below its content (a sibling with h-full would otherwise clip the form
     // and live stages out of the panel's box).
-    <Panel className="shrink-0">
+    <Panel className="h-full">
       <PanelHeader
         icon={FileArrowUp}
         accent="accent"
@@ -401,7 +401,20 @@ export function CaseIntakePanel() {
       />
       <div className="ht-hairline" />
 
-      <PanelBody className="flex flex-col gap-4 pt-4">
+      <PanelBody className="flex flex-col gap-3 pt-3">
+        {/* Imaging & files (collapsible) ----------------------------------- */}
+        <details open className="group border border-[var(--ht-line)] bg-surface-2/40">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
+            <FileArrowUp weight="duotone" className="size-4 text-signal" />
+            Imaging &amp; files
+            {files.length > 0 ? (
+              <span className="ht-mono text-[0.66rem] text-muted">{files.length}</span>
+            ) : null}
+            <span className="ml-auto text-faint transition-transform duration-150 group-open:rotate-90">
+              ›
+            </span>
+          </summary>
+          <div className="flex flex-col gap-3 border-t border-[var(--ht-line)] p-3">
         {/* Dropzone -------------------------------------------------------- */}
         <div
           role="button"
@@ -518,48 +531,59 @@ export function CaseIntakePanel() {
           </p>
         ) : null}
 
-        <div className="ht-hairline" />
-
-        {/* Vitals form ----------------------------------------------------- */}
-        <fieldset className="flex flex-col gap-3" disabled={busy}>
-          <legend className="sr-only">Manual vitals</legend>
-          <div className="flex items-center justify-between">
-            <span className="ht-eyebrow">Manual vitals</span>
-            <button
-              type="button"
-              onClick={clearForm}
-              disabled={busy || !hasInput}
-              className="ht-btn ht-btn-ghost h-6 px-2 text-[0.68rem]"
-            >
-              <TrashSimple className="size-3.5" />
-              Clear
-            </button>
           </div>
+        </details>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {REQUIRED_VITALS.map((f) => (
-              <VitalInput
-                key={f.key}
-                field={f}
-                value={form[f.key]}
-                error={touched[f.key] ? fieldErrors[f.key] : undefined}
-                idBase={fieldsetId}
-                onChange={(v) => setField(f.key, v)}
-                onBlur={() => setTouched((t) => ({ ...t, [f.key]: true }))}
-              />
-            ))}
+        {/* Patient notes (collapsible) ------------------------------------- */}
+        <details className="group border border-[var(--ht-line)] bg-surface-2/40">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
+            <Sparkle weight="duotone" className="size-4 text-signal" />
+            Patient notes
+            <span className="ml-auto text-faint transition-transform duration-150 group-open:rotate-90">
+              ›
+            </span>
+          </summary>
+          <div className="border-t border-[var(--ht-line)] p-3">
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Symptoms, history, and context. The AI reads vitals from your files and notes."
+              className="w-full resize-none border border-[var(--ht-line)] bg-surface-2/60 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
+            />
           </div>
+        </details>
 
-          <details className="group rounded-[var(--ht-r-sm)] border border-[var(--ht-line)] bg-surface-2/40 px-2.5 py-2">
-            <summary className="ht-mono flex cursor-pointer list-none items-center gap-1.5 text-[0.72rem] text-muted marker:hidden">
-              <Sparkle weight="duotone" className="size-3.5 text-signal" />
-              Optional measurements
-              <span className="ml-auto text-faint transition-transform duration-150 group-open:rotate-90">
-                ›
+        {/* Vitals — manual entry (fallback when the AI can't extract them) -- */}
+        <details className="group border border-[var(--ht-line)] bg-surface-2/40">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
+            <Flask weight="duotone" className="size-4 text-signal" />
+            Vitals — manual entry
+            <span className="ml-auto text-faint transition-transform duration-150 group-open:rotate-90">
+              ›
+            </span>
+          </summary>
+          <fieldset
+            className="flex flex-col gap-3 border-t border-[var(--ht-line)] p-3"
+            disabled={busy}
+          >
+            <legend className="sr-only">Manual vitals</legend>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[0.7rem] leading-snug text-muted">
+                Only needed if the AI can&apos;t read them from your files or notes.
               </span>
-            </summary>
-            <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-              {OPTIONAL_VITALS.map((f) => (
+              <button
+                type="button"
+                onClick={clearForm}
+                disabled={busy || !hasInput}
+                className="ht-btn ht-btn-ghost h-6 flex-none px-2 text-[0.68rem]"
+              >
+                <TrashSimple className="size-3.5" />
+                Clear
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {ALL_VITALS.map((f) => (
                 <VitalInput
                   key={f.key}
                   field={f}
@@ -571,19 +595,8 @@ export function CaseIntakePanel() {
                 />
               ))}
             </div>
-          </details>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="ht-eyebrow">Patient notes</span>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Optional clinical context for the intake agent"
-              className="w-full resize-none rounded-[var(--ht-r-sm)] border border-[var(--ht-line)] bg-surface-2/60 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
-            />
-          </label>
-        </fieldset>
+          </fieldset>
+        </details>
 
         {/* Live stage status ---------------------------------------------- */}
         {showStages ? (
