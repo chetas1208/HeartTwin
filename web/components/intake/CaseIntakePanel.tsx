@@ -96,6 +96,35 @@ const EMPTY_FORM: Record<VitalKey, string> = {
   weight_kg: "",
 };
 
+/** Standard normal sample (Box-Muller). */
+function gauss(): number {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/**
+ * Synthetic demo vitals drawn from a normal distribution centered in each
+ * field's plausible range (mean = midpoint, sd = range/6), clamped to bounds.
+ * Educational placeholder data only — NOT a real patient.
+ */
+function generateNormalVitals(): Record<VitalKey, string> {
+  const next = { ...EMPTY_FORM };
+  for (const f of ALL_VITALS) {
+    const bounds = VITAL_BOUNDS[f.key];
+    if (!bounds) continue;
+    const [min, max] = bounds;
+    const mean = (min + max) / 2;
+    const sd = (max - min) / 6;
+    const clamped = Math.max(min, Math.min(max, mean + sd * gauss()));
+    const rounded = max - min <= 5 ? Math.round(clamped * 10) / 10 : Math.round(clamped);
+    next[f.key] = String(rounded);
+  }
+  return next;
+}
+
 const ACCEPT =
   ".pdf,.png,.jpg,.jpeg,.webp,.gif,.csv,.txt,.json,application/pdf,image/*,text/csv,text/plain,application/json";
 
@@ -204,6 +233,10 @@ export function CaseIntakePanel() {
   const [dragging, setDragging] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Manual vitals disclosure (openable from the notes button) + the
+  // "Generate" confirmation modal.
+  const [showVitals, setShowVitals] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
 
   const busy =
     status === "creating" ||
@@ -289,6 +322,15 @@ export function CaseIntakePanel() {
     setForm({ ...EMPTY_FORM });
     setTouched({});
     setNotes("");
+  }, []);
+
+  // Fill the form with synthetic normal-distribution vitals and reveal them so
+  // the clinician can review/edit before running. Gated by a warning modal.
+  const confirmGenerate = useCallback(() => {
+    setForm(generateNormalVitals());
+    setTouched(Object.fromEntries(ALL_VITALS.map((f) => [f.key, true])));
+    setShowVitals(true);
+    setShowGenerate(false);
   }, []);
 
   const ingestFiles = useCallback(
@@ -405,7 +447,7 @@ export function CaseIntakePanel() {
         {/* Imaging & files (collapsible) ----------------------------------- */}
         <details open className="group border border-[var(--ht-line)] bg-surface-2/40">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
-            <FileArrowUp weight="duotone" className="size-4 text-signal" />
+            <FileArrowUp weight="regular" className="size-4 text-muted" />
             Imaging &amp; files
             {files.length > 0 ? (
               <span className="ht-mono text-[0.66rem] text-muted">{files.length}</span>
@@ -534,30 +576,54 @@ export function CaseIntakePanel() {
           </div>
         </details>
 
-        {/* Patient notes (collapsible) ------------------------------------- */}
-        <details className="group border border-[var(--ht-line)] bg-surface-2/40">
+        {/* Patient notes (open by default) --------------------------------- */}
+        <details open className="group border border-[var(--ht-line)] bg-surface-2/40">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
-            <Sparkle weight="duotone" className="size-4 text-signal" />
+            <Sparkle weight="regular" className="size-4 text-muted" />
             Patient notes
             <span className="ml-auto text-faint transition-transform duration-150 group-open:rotate-90">
               ›
             </span>
           </summary>
-          <div className="border-t border-[var(--ht-line)] p-3">
+          <div className="flex flex-col gap-2 border-t border-[var(--ht-line)] p-3">
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Symptoms, history, and context. The AI reads vitals from your files and notes."
-              className="w-full resize-none border border-[var(--ht-line)] bg-surface-2/60 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
+              className="w-full resize-none border border-[var(--ht-line)] bg-surface-2 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
             />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowGenerate(true)}
+                disabled={busy}
+                className="ht-btn ht-btn-ghost h-7 flex-1 px-2 text-[0.72rem]"
+              >
+                <Sparkle className="size-3.5" />
+                Generate
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowVitals(true)}
+                disabled={busy}
+                className="ht-btn ht-btn-ghost h-7 flex-1 px-2 text-[0.72rem]"
+              >
+                <Flask className="size-3.5" />
+                Manual entry
+              </button>
+            </div>
           </div>
         </details>
 
-        {/* Vitals — manual entry (fallback when the AI can't extract them) -- */}
-        <details className="group border border-[var(--ht-line)] bg-surface-2/40">
+        {/* Vitals — manual entry (controlled; openable from notes) --------- */}
+        <details
+          open={showVitals}
+          onToggle={(e) => setShowVitals((e.currentTarget as HTMLDetailsElement).open)}
+          className="group border border-[var(--ht-line)] bg-surface-2/40"
+        >
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
-            <Flask weight="duotone" className="size-4 text-signal" />
+            <Flask weight="regular" className="size-4 text-muted" />
             Vitals — manual entry
             <span className="ml-auto text-faint transition-transform duration-150 group-open:rotate-90">
               ›
@@ -656,6 +722,45 @@ export function CaseIntakePanel() {
           ) : null}
         </div>
       </PanelBody>
+
+      {/* Generate synthetic vitals — warning gate before filling demo data. */}
+      {showGenerate ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ht-generate-title"
+          className="fixed inset-0 grid place-items-center bg-[var(--ht-overlay)] p-4"
+          style={{ zIndex: 100 }}
+        >
+          <div className="w-full max-w-sm border border-[var(--ht-line-strong)] bg-[var(--ht-surface-1)] p-5">
+            <h2 id="ht-generate-title" className="text-[0.95rem] font-semibold text-ink">
+              Generate synthetic vitals?
+            </h2>
+            <p className="mt-2 text-[0.82rem] leading-relaxed text-ink-2">
+              This fills the form with random values from a normal distribution
+              for demonstration only. It is not real patient data and will skew
+              the simulation and evaluation. Replace with measured values before
+              relying on any result.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowGenerate(false)}
+                className="ht-btn ht-btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmGenerate}
+                className="ht-btn ht-btn-primary flex-1"
+              >
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Panel>
   );
 }
