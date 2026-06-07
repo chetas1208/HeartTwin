@@ -66,12 +66,19 @@ async def store_case(case_id: str, case_data: dict) -> None:
         try:
             import httpx
             payload = json.dumps(case_data)
-            await httpx.AsyncClient().post(
+            # Upstash REST stores the request body verbatim as the value.
+            # Send the serialized JSON as raw content (NOT json=, which would
+            # wrap it in an extra layer of JSON quoting and corrupt round-trips).
+            response = await httpx.AsyncClient().post(
                 f"{redis_url}/set/case:{case_id}",
-                headers={"Authorization": f"Bearer {redis_token}"},
-                json=payload,
+                headers={
+                    "Authorization": f"Bearer {redis_token}",
+                    "Content-Type": "text/plain",
+                },
+                content=payload,
                 timeout=10.0,
             )
+            response.raise_for_status()
             return
         except Exception:
             pass
@@ -94,8 +101,15 @@ async def get_case(case_id: str) -> Optional[dict]:
             )
             if response.status_code == 200:
                 data = response.json()
-                if data.get("result"):
-                    return json.loads(data["result"])
+                result = data.get("result")
+                if result:
+                    parsed = json.loads(result)
+                    # Tolerate legacy double-encoded values (a JSON string that
+                    # itself contains JSON) so old records still deserialize.
+                    if isinstance(parsed, str):
+                        parsed = json.loads(parsed)
+                    if isinstance(parsed, dict):
+                        return parsed
         except Exception:
             pass
 

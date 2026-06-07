@@ -13,10 +13,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from copilotkit.integrations.fastapi import add_fastapi_endpoint
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from python.hearttwin.copilot import build_sdk
 from python.hearttwin.orchestrator import (
     run_extraction_pipeline,
     run_operation_pipeline,
@@ -52,6 +54,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# CopilotKit (AG-UI) endpoint  — "Best Use of CopilotKit"
+# ---------------------------------------------------------------------------
+# Mounts the deterministic HeartTwin pipeline as CopilotKit server-side
+# actions at /copilotkit. The CopilotKit runtime handshakes against
+# /copilotkit/info; actions execute at /copilotkit/actions/execute.
+_copilot_sdk = build_sdk()
+add_fastapi_endpoint(app, _copilot_sdk, "/copilotkit")
 
 
 # ---------------------------------------------------------------------------
