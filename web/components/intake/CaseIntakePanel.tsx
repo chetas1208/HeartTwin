@@ -592,7 +592,7 @@ export function CaseIntakePanel() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Symptoms, history, and context. The AI reads vitals from your files and notes."
-              className="min-h-[40vh] w-full resize-y border border-[var(--ht-line)] bg-surface-2 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
+              className="min-h-[20vh] w-full resize-y border border-[var(--ht-line)] bg-surface-2 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
             />
             <div className="flex items-center gap-2">
               <button
