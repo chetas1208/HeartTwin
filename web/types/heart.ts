@@ -191,10 +191,42 @@ export interface Simulation3DHeart {
   simulation_label?: string
 }
 
+export type FindingSeverity = 'normal' | 'mild' | 'moderate' | 'severe' | 'info'
+
+export interface FindingCode {
+  system: string
+  code: string
+  label: string
+}
+
+export interface CardiacFinding {
+  id: string
+  title: string
+  region: string
+  territory?: string | null
+  aha_segments: number[]
+  anchor: { x: number; y: number; z: number }
+  severity: FindingSeverity
+  summary: string
+  metric: string
+  codes: FindingCode[]
+  source: string
+  educational?: boolean
+}
+
+export interface CardiacFindings {
+  findings: CardiacFinding[]
+  imaging_source: string
+  segment_model: string
+  disclaimer: string
+  model: string
+}
+
 export interface SimulationVisualization {
   cardiac_cycle: CardiacCycleData
   pv_loop: PVLoopData
   '3d_heart'?: Simulation3DHeart
+  cardiac_findings?: CardiacFindings
   summary: {
     stroke_volume_ml: number
     ef_pct: number
