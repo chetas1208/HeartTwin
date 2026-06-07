@@ -20,49 +20,49 @@
 */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* ---- Surfaces: clinical lacquer, near-black, cool-tinted toward cyan ---- */
-  --ht-bg: oklch(0.16 0.018 250);          /* page ground, not pure black */
-  --ht-surface-1: oklch(0.19 0.02 250);    /* primary panel */
-  --ht-surface-2: oklch(0.22 0.022 250);   /* raised panel / toolbar */
-  --ht-surface-3: oklch(0.26 0.024 250);   /* hover / selected fill */
-  --ht-overlay: oklch(0.13 0.016 250 / 0.72); /* scrim behind modals */
+  /* ---- Surfaces: light clinical paper, cool neutral ---- */
+  --ht-bg: oklch(0.965 0.003 250);          /* page ground / seams behind panels */
+  --ht-surface-1: oklch(0.995 0.001 250);   /* primary panel (white) */
+  --ht-surface-2: oklch(0.975 0.003 250);   /* raised panel / toolbar */
+  --ht-surface-3: oklch(0.945 0.004 250);   /* hover / selected fill */
+  --ht-overlay: oklch(0.3 0.02 250 / 0.42); /* scrim behind modals */
 
-  /* ---- Hairlines ---- */
-  --ht-line: oklch(0.32 0.02 250 / 0.55);  /* default divider */
-  --ht-line-strong: oklch(0.42 0.025 250 / 0.7); /* emphasized edge */
+  /* ---- Hairlines / puzzle seams ---- */
+  --ht-line: oklch(0.88 0.005 250);         /* default divider */
+  --ht-line-strong: oklch(0.74 0.008 250);  /* emphasized edge / thick seam */
 
-  /* ---- Text ramp (verified contrast against --ht-surface-1) ---- */
-  --ht-ink: oklch(0.97 0.005 250);         /* primary text, ~15:1 */
-  --ht-ink-2: oklch(0.82 0.012 250);       /* secondary text, ~7.5:1 */
-  --ht-muted: oklch(0.68 0.014 250);       /* muted/labels, ~4.6:1 */
-  --ht-faint: oklch(0.52 0.016 250);       /* disabled/ghost, decorative only */
+  /* ---- Text ramp (verified contrast against white) ---- */
+  --ht-ink: oklch(0.26 0.012 250);          /* primary text, ~13:1 */
+  --ht-ink-2: oklch(0.42 0.013 250);        /* secondary text, ~8:1 */
+  --ht-muted: oklch(0.54 0.012 250);        /* muted/labels, ~5:1 */
+  --ht-faint: oklch(0.66 0.01 250);         /* disabled/ghost, decorative only */
 
-  /* ---- Primary accent: systolic crimson / pulse red ---- */
-  --ht-accent: oklch(0.62 0.2 18);
-  --ht-accent-bright: oklch(0.68 0.21 20);
-  --ht-accent-dim: oklch(0.5 0.16 18);
-  --ht-accent-ink: oklch(0.98 0.02 20);    /* text on accent fill */
-  --ht-accent-soft: oklch(0.62 0.2 18 / 0.14);
-  --ht-accent-line: oklch(0.62 0.2 18 / 0.4);
+  /* ---- Primary accent: systolic crimson, darkened for light ground ---- */
+  --ht-accent: oklch(0.54 0.19 22);
+  --ht-accent-bright: oklch(0.51 0.2 24);
+  --ht-accent-dim: oklch(0.64 0.14 22);
+  --ht-accent-ink: oklch(0.99 0.01 20);     /* text on accent fill */
+  --ht-accent-soft: oklch(0.54 0.19 22 / 0.10);
+  --ht-accent-line: oklch(0.54 0.19 22 / 0.32);
 
-  /* ---- Secondary: signal cyan / verdigris for agents, data, trace ---- */
-  --ht-signal: oklch(0.78 0.13 195);
-  --ht-signal-bright: oklch(0.84 0.14 195);
-  --ht-signal-dim: oklch(0.6 0.1 195);
-  --ht-signal-soft: oklch(0.78 0.13 195 / 0.12);
-  --ht-signal-line: oklch(0.78 0.13 195 / 0.36);
+  /* ---- Secondary: signal teal for agents, data, trace ---- */
+  --ht-signal: oklch(0.52 0.1 220);
+  --ht-signal-bright: oklch(0.48 0.11 222);
+  --ht-signal-dim: oklch(0.64 0.07 220);
+  --ht-signal-soft: oklch(0.52 0.1 220 / 0.10);
+  --ht-signal-line: oklch(0.52 0.1 220 / 0.3);
 
   /* ---- ECG / recovery green ---- */
-  --ht-ecg: oklch(0.79 0.16 150);
-  --ht-ecg-soft: oklch(0.79 0.16 150 / 0.13);
-  --ht-ecg-line: oklch(0.79 0.16 150 / 0.36);
+  --ht-ecg: oklch(0.52 0.13 150);
+  --ht-ecg-soft: oklch(0.52 0.13 150 / 0.12);
+  --ht-ecg-line: oklch(0.52 0.13 150 / 0.32);
 
   /* ---- Single amber for warnings ---- */
-  --ht-warn: oklch(0.82 0.15 80);
-  --ht-warn-soft: oklch(0.82 0.15 80 / 0.13);
-  --ht-warn-line: oklch(0.82 0.15 80 / 0.38);
+  --ht-warn: oklch(0.6 0.13 70);
+  --ht-warn-soft: oklch(0.6 0.13 70 / 0.13);
+  --ht-warn-line: oklch(0.6 0.13 70 / 0.34);
 
   /* ---- Status semantics (map to the four hues above) ---- */
   --ht-ok: var(--ht-ecg);
@@ -146,10 +146,12 @@
   --radius-md: var(--ht-r-md);
   --radius-lg: var(--ht-r-lg);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+  /* One typeface for the whole console (Inter). "Mono" keeps the same family
+     and just locks tabular figures so numeric columns still align. */
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo,
-    Consolas, monospace;
+  --font-mono: var(--font-ui), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
 
   --ease-out-expo: var(--ht-ease-out-expo);
   --ease-out-quart: var(--ht-ease-out-quart);
@@ -214,19 +216,19 @@ a {
 /*  Reusable primitives (utility classes). Keep small; do NOT over-card. */
 /* ------------------------------------------------------------------ */
 
+/* Panels are borderless filled boxes; the grid's 2px seams ARE the borders, so
+   adjacent panels meet like a puzzle with no doubled edges. */
 .ht-panel {
   position: relative;
-  border: 1px solid var(--ht-line);
-  border-radius: var(--ht-r-lg);
+  border: 0;
+  border-radius: 0;
   background: var(--ht-surface-1);
-  box-shadow: var(--ht-shadow-panel);
 }
 
 .ht-panel-raised {
-  border: 1px solid var(--ht-line-strong);
-  border-radius: var(--ht-r-lg);
+  border: 0;
+  border-radius: 0;
   background: var(--ht-surface-2);
-  box-shadow: var(--ht-shadow-raised);
 }
 
 .ht-hairline {

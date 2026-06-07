@@ -39,35 +39,39 @@ export function Panel({
 
 export function PanelHeader({
   icon: IconCmp,
-  eyebrow,
+  // `eyebrow` and `accent` are accepted for call-site compatibility but no
+  // longer rendered: headers are a single compressed line (uniform icon +
+  // title) so the box gives maximum room to its content.
+  eyebrow: _eyebrow,
   title,
-  accent = "neutral",
+  accent: _accent = "neutral",
   actions,
 }: {
   icon?: Icon;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   accent?: Accent;
   actions?: ReactNode;
 }) {
+  void _eyebrow;
+  void _accent;
   return (
-    <header className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
-      <div className="flex items-start gap-3">
+    <header className="flex h-9 flex-none items-center justify-between gap-2 px-3">
+      <div className="flex min-w-0 items-center gap-2">
         {IconCmp ? (
-          <span
+          <IconCmp
+            weight="regular"
             aria-hidden
-            className="grid size-8 flex-none place-items-center rounded-[var(--ht-r-sm)] border border-[var(--ht-line)] bg-surface-2"
-            style={{ color: accentColor[accent] }}
-          >
-            <IconCmp weight="duotone" className="size-[1.05rem]" />
-          </span>
+            className="size-3.5 flex-none text-muted"
+          />
         ) : null}
-        <div className="flex flex-col gap-0.5">
-          <span className="ht-eyebrow">{eyebrow}</span>
-          <h2 className="ht-panel-title">{title}</h2>
-        </div>
+        <h2 className="truncate text-[0.8rem] font-semibold tracking-tight text-ink">
+          {title}
+        </h2>
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-none items-center gap-1.5">{actions}</div>
+      ) : null}
     </header>
   );
 }

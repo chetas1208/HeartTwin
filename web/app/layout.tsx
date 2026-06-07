@@ -1,16 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { CopilotProvider } from "@/components/copilot/CopilotProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// One typeface for the whole console — Inter, tuned for on-screen readability.
+const inter = Inter({
+  variable: "--font-ui",
   subsets: ["latin"],
   display: "swap",
 });
@@ -32,8 +27,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c111c",
-  colorScheme: "dark",
+  themeColor: "#f5f6f8",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -42,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={inter.variable}>
       <body>
         <CopilotProvider>{children}</CopilotProvider>
       </body>
