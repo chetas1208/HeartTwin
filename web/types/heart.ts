@@ -150,35 +150,69 @@ export interface CardiacTwinState {
 }
 
 export interface PVLoopData {
-  volumes_ml: number[]
-  pressures_mmhg: number[]
+  volume_ml: number[]
+  pressure_mmhg: number[]
   pv_loop_area_mmhg_ml: number
   stroke_work_j: number
   peak_pressure_mmhg: number
-  edp_mmhg: number
+  ef_pct?: number
+  loop_area_index?: number
+  model?: string
+  simulation_label?: string
+  pv_warnings?: string[]
 }
 
 export interface CardiacCycleData {
   time_ms: number[]
-  lv_volume_ml: number[]
-  lv_pressure_mmhg: number[]
+  volume_ml: number[]
+  pressure_mmhg: number[]
   aortic_flow_ml_s: number[]
   heart_rate_bpm: number
   cycle_duration_ms: number
+  phase?: string[]
+  stroke_volume_ml?: number
+  cardiac_output_l_min?: number
+  warnings?: string[]
+}
+
+export interface Simulation3DHeart {
+  heart_rate_bpm: number
+  beat_interval_ms: number
+  beat_amplitude: number
+  contractility_index: number
+  afterload_index: number
+  preload_index: number
+  oxygen_delivery_index: number
+  inflammation_index: number
+  scar_fraction: number
+  stress_field_intensity: number
+  blood_flow_particle_density: number
+  electrical_wave_speed: number
+  simulation_label?: string
 }
 
 export interface SimulationVisualization {
   cardiac_cycle: CardiacCycleData
   pv_loop: PVLoopData
+  '3d_heart'?: Simulation3DHeart
   summary: {
-    edv_ml: number
-    esv_ml: number
     stroke_volume_ml: number
     ef_pct: number
+    ejection_fraction_pct?: number
     cardiac_output_l_min: number
     heart_rate_bpm: number
     map_mmhg: number
+    rr_interval_ms?: number
+    preload_index?: number
+    afterload_index?: number
+    contractility_index?: number
+    svr_index?: number
+    compliance_index?: number
+    filling_pressure_index?: number
+    pv_loop_area_index?: number
+    oxygen_demand_index?: number
     operating_mode: OperatingMode
+    simulation_label?: string
   }
   hemodynamics: Record<string, number>
   electrophysiology: {
@@ -190,6 +224,7 @@ export interface SimulationVisualization {
     r_peak_confidence?: number | null
   }
   simulation_note: string
+  operation_summary?: string
 }
 
 export interface RecoveryDay {

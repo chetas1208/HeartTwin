@@ -13,9 +13,10 @@
  *   own SVG/canvas and needs concrete color strings.
  *
  * Data notes (verified against the live backend):
- *   - visualization.pv_loop: closed loop, volumes_ml × pressures_mmhg (≈200 pts).
- *   - visualization.cardiac_cycle: time_ms with lv_pressure_mmhg + lv_volume_ml
- *     over one beat (≈680 samples). Pressure and volume live on two y-axes.
+ *   - visualization.pv_loop: closed loop, volume_ml × pressure_mmhg (≈200 pts).
+ *     EDV/ESV/EDP are derived from the loop (max/min volume + pressure there).
+ *   - visualization.cardiac_cycle: time_ms with pressure_mmhg + volume_ml over
+ *     one beat (≈50 samples). Pressure and volume live on two y-axes.
  *   - scenarios[].trajectory[].uncertainty_low/high bound CARDIAC OUTPUT
  *     (cardiac_output_l_min), not EF — the band wraps the CO line.
  */
@@ -174,11 +175,17 @@ function mergeLayout(extra: PlotLayout): PlotLayout {
 // ---------------------------------------------------------------------------
 
 function pvLoopFigure(viz: SimulationVisualization, p: ChartPalette) {
-  const { volumes_ml, pressures_mmhg } = viz.pv_loop;
+  const { volume_ml, pressure_mmhg } = viz.pv_loop;
   // Close the loop so the fill reads as one continuous cycle.
-  const vx = [...volumes_ml, volumes_ml[0]];
-  const py = [...pressures_mmhg, pressures_mmhg[0]];
-  const { edv_ml, esv_ml } = viz.summary;
+  const vx = [...volume_ml, volume_ml[0]];
+  const py = [...pressure_mmhg, pressure_mmhg[0]];
+  // End-diastolic / end-systolic points derived from the loop itself: EDV is the
+  // maximum ventricular volume (end of filling), ESV the minimum (end of
+  // ejection), and EDP the filling pressure at that end-diastolic sample.
+  const edvIdx = volume_ml.indexOf(Math.max(...volume_ml));
+  const edv_ml = volume_ml[edvIdx];
+  const esv_ml = Math.min(...volume_ml);
+  const edp_mmhg = pressure_mmhg[edvIdx];
 
   const data: PlotTrace[] = [
     {
@@ -195,7 +202,7 @@ function pvLoopFigure(viz: SimulationVisualization, p: ChartPalette) {
     },
     {
       x: [esv_ml, edv_ml],
-      y: [viz.pv_loop.edp_mmhg, viz.pv_loop.edp_mmhg],
+      y: [edp_mmhg, edp_mmhg],
       type: "scatter",
       mode: "markers",
       marker: {
@@ -233,13 +240,13 @@ function pvLoopFigure(viz: SimulationVisualization, p: ChartPalette) {
 }
 
 function cardiacCycleFigure(viz: SimulationVisualization, p: ChartPalette) {
-  const { time_ms, lv_pressure_mmhg, lv_volume_ml } = viz.cardiac_cycle;
+  const { time_ms, pressure_mmhg, volume_ml } = viz.cardiac_cycle;
   const t = time_ms.map((ms) => ms / 1000); // seconds reads cleaner
 
   const data: PlotTrace[] = [
     {
       x: t,
-      y: lv_pressure_mmhg,
+      y: pressure_mmhg,
       type: "scatter",
       mode: "lines",
       line: { color: p.accent, width: 1.9 },
@@ -249,7 +256,7 @@ function cardiacCycleFigure(viz: SimulationVisualization, p: ChartPalette) {
     },
     {
       x: t,
-      y: lv_volume_ml,
+      y: volume_ml,
       type: "scatter",
       mode: "lines",
       line: { color: p.signal, width: 1.9, dash: "dot" },
