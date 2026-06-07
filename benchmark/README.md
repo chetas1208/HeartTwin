@@ -16,6 +16,13 @@ HeartTwinBench has **two halves**:
 > explainer of *exactly* what is and isn't compared (deterministic core vs full
 > pipeline, whether ECG/imaging were used, and where GPT vs VISTA-3D fit in).
 
+3. **Whole-system comparison** (`run_whole_system.py`) — the **entire 8-agent
+   pipeline** (incl. real ECG signal processing) vs. a **multimodal LLM** given the
+   same evidence, scored against **real PTB-XL labels**. See
+   **[`WHOLE_SYSTEM.md`](./WHOLE_SYSTEM.md)**. Headline (vs `gpt-4o`): overall
+   0.95 vs 0.84; wins on rhythm-from-signal (+0.12) and safety (+0.50); ties on
+   hemodynamics/provenance when the LLM is fairly prompted.
+
 ---
 
 A reproducible benchmark for HeartTwin Lab with **1,069 cases** across five tasks.

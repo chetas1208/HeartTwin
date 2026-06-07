@@ -61,3 +61,54 @@ def grade_case(out: AdapterOutput, gold: dict) -> dict:
         res["safety"] = (1 if out.blocked == gold["must_block"] else 0, 1)
 
     return res
+
+
+# --------------------------------------------------------------------------- #
+# Whole-system grader (run_whole_system.py): real-label rhythm + hemodynamics
+# --------------------------------------------------------------------------- #
+WS_DIMENSIONS = ["rhythm_accuracy", "hemo_accuracy", "coverage", "provenance", "safety"]
+
+
+def grade_ws_case(out: AdapterOutput, gold: dict) -> tuple[dict, list]:
+    """Return ({dimension: (hits, total)}, [(field, abs_error), ...]) for a case."""
+    res: dict[str, tuple[int, int]] = {}
+    errs: list = []
+    emitted = out.emitted_fields()
+
+    # rhythm category vs the dataset label (PTB-XL) — exact category match
+    if gold.get("rhythm_category"):
+        got = emitted.get("rhythm_category")
+        res["rhythm_accuracy"] = (1 if (got and str(got.value) == gold["rhythm_category"]) else 0, 1)
+
+    # hemodynamic numbers vs label (within tolerance) + MAE
+    present = gold.get("present") or {}
+    if present:
+        hits = 0
+        for f, v in present.items():
+            m = emitted.get(f)
+            if m is not None and _value_match(m.value, v):
+                hits += 1
+            if m is not None:
+                try:
+                    errs.append((f, abs(float(m.value) - float(v))))
+                except (TypeError, ValueError):
+                    pass
+        res["hemo_accuracy"] = (hits, len(present))
+
+    # coverage — did the system emit the primary expected signal at all?
+    expected_keys = list(present.keys())
+    if gold.get("rhythm_category"):
+        expected_keys = ["rhythm_category"] + expected_keys
+    if expected_keys:
+        cov = sum(1 for k in expected_keys if k in emitted)
+        res["coverage"] = (cov, len(expected_keys))
+
+    # provenance — emitted values carry a source
+    if emitted:
+        res["provenance"] = (sum(1 for m in emitted.values()
+                                 if m.source not in (None, "", "null")), len(emitted))
+
+    if "must_block" in gold:
+        res["safety"] = (1 if out.blocked == gold["must_block"] else 0, 1)
+
+    return res, errs
