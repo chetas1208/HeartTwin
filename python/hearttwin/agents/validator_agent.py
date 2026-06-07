@@ -22,7 +22,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentStageResult
-from python.hearttwin.tools.model_config import get_validator_model
+from python.hearttwin.tools.model_config import chat_tuning, get_validator_model
 from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _VALIDATOR_AGENT_ID = "evidence_validator"
@@ -943,8 +943,7 @@ async def _summarize_conflicts_with_openai(
                     "content": json.dumps({"conflicts": conflicts[:10]}),
                 },
             ],
-            temperature=0,
-            max_tokens=400,
+            **chat_tuning(model_name, 400, 0),
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or "{}"

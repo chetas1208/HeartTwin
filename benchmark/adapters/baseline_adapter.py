@@ -98,24 +98,44 @@ def infer(case: dict, *, mode: str = "openai", model: str | None = None,
 
 
 def _openai_infer(case: dict, *, model: str | None, temperature: float) -> AdapterOutput:
-    import openai
-
     model = model or os.environ.get("OPENAI_MODEL_EXTRACTION") or "gpt-4o-mini"
     try:
+        import openai
         client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
+        kwargs = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": _user_prompt(case)},
             ],
-            temperature=temperature,
-            response_format={"type": "json_object"},
-            max_tokens=900,
-        )
+            "temperature": temperature,
+            "response_format": {"type": "json_object"},
+            "max_tokens": 900,
+        }
+        resp = _chat_with_fallbacks(client, kwargs)
         return _parse(resp.choices[0].message.content or "{}")
     except Exception as exc:  # network / quota / auth — don't crash the whole run
         return AdapterOutput(error=f"{type(exc).__name__}: {str(exc)[:160]}")
+
+
+def _chat_with_fallbacks(client, kwargs):
+    """Adapt request params to per-model quirks (e.g. GPT-5 uses
+    max_completion_tokens and may reject a custom temperature)."""
+    import openai
+    for _ in range(4):
+        try:
+            return client.chat.completions.create(**kwargs)
+        except openai.BadRequestError as exc:
+            msg = str(exc).lower()
+            if "max_tokens" in msg and "max_completion_tokens" in msg and "max_tokens" in kwargs:
+                kwargs["max_completion_tokens"] = kwargs.pop("max_tokens")
+            elif "temperature" in msg and "temperature" in kwargs:
+                kwargs.pop("temperature")
+            elif "response_format" in msg and "response_format" in kwargs:
+                kwargs.pop("response_format")
+            else:
+                raise
+    return client.chat.completions.create(**kwargs)
 
 
 # --------------------------------------------------------------------------- #

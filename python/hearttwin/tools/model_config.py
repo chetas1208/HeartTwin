@@ -24,6 +24,32 @@ def _model(name: str, fallback: str) -> str:
     return os.environ.get(name) or fallback
 
 
+def _is_newer_openai_model(model: str) -> bool:
+    """True for GPT-5+/o-series reasoning models with the newer Chat API contract.
+
+    These models reject ``max_tokens`` (require ``max_completion_tokens``) and
+    only accept the default ``temperature`` (1) — sending either legacy form
+    raises HTTP 400 ``unsupported_parameter``.
+    """
+    m = (model or "").lower()
+    return m.startswith(("gpt-5", "gpt-6", "o1", "o3", "o4")) or "reasoning" in m
+
+
+def chat_tuning(model: str, max_output_tokens: int, temperature: float | None = None) -> dict:
+    """Build version-correct sampling kwargs for ``chat.completions.create``.
+
+    Newer models → ``max_completion_tokens`` and no explicit ``temperature``.
+    Legacy models → ``max_tokens`` (+ ``temperature`` when provided). This keeps
+    every agent call valid across model generations ("no bad requests").
+    """
+    if _is_newer_openai_model(model):
+        return {"max_completion_tokens": max_output_tokens}
+    kwargs: dict = {"max_tokens": max_output_tokens}
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    return kwargs
+
+
 def get_copilot_model() -> str:
     """Return the configured model for read-only case explanation."""
     return get_fast_model()

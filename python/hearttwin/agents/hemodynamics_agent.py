@@ -50,7 +50,7 @@ from python.hearttwin.tools.hemodynamics import (
     generate_cardiac_cycle,
     generate_pressure_volume_loop,
 )
-from python.hearttwin.tools.model_config import get_hemodynamics_model
+from python.hearttwin.tools.model_config import chat_tuning, get_hemodynamics_model
 from python.hearttwin.tools.weave_trace import TraceContext, get_trace_sink
 
 # ---------------------------------------------------------------------------
@@ -293,8 +293,7 @@ async def _generate_operation_summary(
         response = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=120,
-            temperature=0.0,
+            **chat_tuning(model, 120, 0.0),
         )
         raw = (response.choices[0].message.content or "").strip()
         return enforce_simulation_language(raw) or fallback

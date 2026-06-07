@@ -69,6 +69,11 @@ async def run_extraction_agent(
             warnings.extend(ct_warnings)
             method = "ct_segmentation"
 
+        elif content_type.startswith("video/") or filename.lower().endswith((".avi", ".mp4", ".mov", ".webm")):
+            extracted, vid_warnings = await _extract_from_video(file_bytes, file_id, filename, content_type)
+            warnings.extend(vid_warnings)
+            method = "video_frame_extraction"
+
         else:
             extracted = {}
             warnings.append(f"File type '{content_type}' not supported for extraction")
@@ -170,6 +175,42 @@ async def _extract_from_ct(
         }
     }
     return extracted, warnings
+
+
+async def _extract_from_video(
+    file_bytes: bytes, file_id: str, filename: str, content_type: str
+) -> tuple[dict[str, Any], list[str]]:
+    """Extract a representative frame from an echo video and run image extraction.
+
+    Decoding needs an optional codec lib (imageio-ffmpeg). When absent, this
+    degrades to a labelled warning — the upload is accepted, nothing crashes,
+    and no values are invented.
+    """
+    warnings: list[str] = []
+    frame_png: bytes | None = None
+    try:
+        import imageio.v3 as iio  # type: ignore
+
+        import numpy as np
+
+        frames = iio.imread(io.BytesIO(file_bytes), index=None)  # all frames
+        arr = frames[len(frames) // 2] if getattr(frames, "ndim", 0) == 4 else frames
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.fromarray(np.asarray(arr)).convert("RGB").save(buf, format="PNG")
+        frame_png = buf.getvalue()
+    except Exception as exc:
+        warnings.append(
+            f"Video '{filename}': frame extraction unavailable "
+            f"({type(exc).__name__}) — install imageio-ffmpeg to enable echo-video frames. "
+            "Upload accepted; no values invented."
+        )
+        return {}, warnings
+
+    result = await extract_from_image(frame_png, file_id, f"{filename}.frame.png", "image/png")
+    warnings.extend(result.warnings)
+    return result.extracted_values, warnings
 
 
 def _extract_from_csv(

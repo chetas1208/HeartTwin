@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 
 from python.hearttwin.safety import CORE_SAFETY_PHRASE, strip_allowed_safety_phrases
 from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentStageResult, CardiacTwinState
-from python.hearttwin.tools.model_config import get_evaluator_model
+from python.hearttwin.tools.model_config import chat_tuning, get_evaluator_model
 from python.hearttwin.tools.scoring import (
     score_extraction_completeness,
     score_hallucination_risk,
@@ -1132,8 +1132,7 @@ async def _generate_critic_summary_openai(
                     ),
                 },
             ],
-            temperature=0,
-            max_tokens=280,
+            **chat_tuning(model_name, 280, 0),
         )
         text = (response.choices[0].message.content or "").strip()
         if not text:

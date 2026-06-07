@@ -599,7 +599,17 @@ _ALLOWED_TYPES = {
     "text/plain",
     "application/json",
     "application/octet-stream",
+    # Medical volumes / archives (CT NIfTI, gzip, DICOM series zip, DICOM)
+    "application/gzip",
+    "application/x-gzip",
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/dicom",
+    "application/nifti",
 }
+
+# Larger cap for medical imaging volumes (a chest CT .nii.gz is commonly 40-80 MB).
+_MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 
 
 @app.post("/api/v1/cases/{case_id}/files")
@@ -612,15 +622,24 @@ async def upload_file(case_id: str, file: UploadFile = File(...)) -> dict:
     case = CaseRecord(**case_data)
     content_type = file.content_type or "application/octet-stream"
 
-    if content_type not in _ALLOWED_TYPES and not content_type.startswith("image/"):
+    if (
+        content_type not in _ALLOWED_TYPES
+        and not content_type.startswith(("image/", "video/"))
+    ):
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type '{content_type}'. Accepted: PDF, image, CSV, TXT, JSON.",
+            detail=(
+                f"Unsupported file type '{content_type}'. Accepted: PDF, image, video, "
+                "CSV, TXT, JSON, and medical volumes (CT NIfTI/.nii.gz, DICOM/.zip)."
+            ),
         )
 
     file_bytes = await file.read()
-    if len(file_bytes) > 50 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File exceeds 50 MB limit")
+    if len(file_bytes) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+        )
 
     file_id, storage_url = await store_file(file_bytes, file.filename or "upload", content_type)
 

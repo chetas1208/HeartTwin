@@ -34,7 +34,7 @@ from python.hearttwin.schemas import (
     ValueSource,
 )
 from python.hearttwin.tools.ecg_features import EcgFeatures, analyze_waveform
-from python.hearttwin.tools.model_config import get_electrophysiology_model
+from python.hearttwin.tools.model_config import chat_tuning, get_electrophysiology_model
 from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _EP_AGENT_ID = "electrophysiology"
@@ -626,8 +626,7 @@ async def _normalize_reported_label_with_openai(
                     "content": f"Reported rhythm text: {sanitized_label}",
                 },
             ],
-            temperature=0,
-            max_tokens=120,
+            **chat_tuning(model_name, 120, 0),
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or "{}"

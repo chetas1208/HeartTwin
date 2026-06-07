@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from python.hearttwin.safety import CORE_SAFETY_PHRASE, DISCLAIMER
 from python.hearttwin.schemas import AgentResponse, AgentStatus, AgentStageResult, CaseRecord, UploadedFile
-from python.hearttwin.tools.model_config import get_intake_model
+from python.hearttwin.tools.model_config import chat_tuning, get_intake_model
 from python.hearttwin.tools.weave_trace import TraceContext, utc_now
 
 _INTAKE_AGENT_ID = "intake_safety"
@@ -57,6 +57,14 @@ _ACCEPTED_CONTENT_TYPES = {
     "image/tiff",
     "text/csv",
     "application/octet-stream",
+    # Medical volumes / archives + clinical metadata
+    "application/gzip",
+    "application/x-gzip",
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/dicom",
+    "application/nifti",
+    "application/json",
 }
 
 
@@ -262,8 +270,7 @@ async def _classify_intent_with_openai(
                     "content": f"Redacted request summary:\n{_summarize(redacted_text, max_chars=700)}",
                 },
             ],
-            temperature=0,
-            max_tokens=80,
+            **chat_tuning(model_name, 80, 0),
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or "{}"
@@ -483,7 +490,7 @@ def _accepted_files(files: list[dict]) -> tuple[list[dict], list[str]]:
     for file in files:
         content_type = str(file.get("content_type") or "")
         filename = str(file.get("filename") or "unknown")
-        if content_type in _ACCEPTED_CONTENT_TYPES or content_type.startswith(("image/", "text/")):
+        if content_type in _ACCEPTED_CONTENT_TYPES or content_type.startswith(("image/", "text/", "video/")):
             accepted.append(file)
         else:
             warnings.append(f"File '{filename}' type '{content_type or 'unknown'}' not accepted; skipped")

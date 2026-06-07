@@ -49,7 +49,7 @@ from python.hearttwin.tools.cardiac_state import (
     compute_rr_from_hr,
     compute_stroke_volume,
 )
-from python.hearttwin.tools.model_config import get_state_builder_model
+from python.hearttwin.tools.model_config import chat_tuning, get_state_builder_model
 from python.hearttwin.tools.scoring import compute_data_quality_score
 from python.hearttwin.tools.weave_trace import TraceContext
 
@@ -812,8 +812,7 @@ async def _explain_mapping_with_openai(
                     }),
                 },
             ],
-            temperature=0,
-            max_tokens=200,
+            **chat_tuning(model_name, 200, 0),
         )
         text = (response.choices[0].message.content or "").strip()
         return (text or None), None
