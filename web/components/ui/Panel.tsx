@@ -84,7 +84,7 @@ export function PanelBody({
   className?: string;
 }) {
   return (
-    <div className={`min-h-0 flex-1 overflow-y-auto px-4 pb-4 ${className}`}>
+    <div className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 ${className}`}>
       {children}
     </div>
   );

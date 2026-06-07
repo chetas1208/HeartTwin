@@ -82,15 +82,25 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[var(--ht-line-strong)] lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden">
-      {/* Slim status bar — no brand lockup, just live state. */}
-      <header className="flex h-10 flex-none items-center justify-between gap-3 border-b-2 border-[var(--ht-line-strong)] bg-[var(--ht-surface-1)] px-3">
-        <span className="ht-chip" data-status={statusKind(status)}>
+      {/* Slim status bar: live status (left), title (center), Weave (right). */}
+      <header className="flex h-11 flex-none items-center justify-between gap-3 border-b-2 border-[var(--ht-line-strong)] bg-[var(--ht-surface-1)] px-3">
+        <span className="ht-chip flex-none" data-status={statusKind(status)}>
           <span
             className={`ht-chip-dot ${statusKind(status) === "running" ? "ht-pulse" : ""}`}
           />
           {STATUS_LABEL[status]}
         </span>
-        <WeaveBadge />
+        <div className="min-w-0 flex-1 text-center leading-tight">
+          <div className="text-[0.82rem] font-semibold tracking-tight text-ink">
+            HeartTwin Lab
+          </div>
+          <div className="truncate text-[0.62rem] text-muted">
+            Multi-agent cardiac digital twin · educational simulation only
+          </div>
+        </div>
+        <div className="flex-none">
+          <WeaveBadge />
+        </div>
       </header>
 
       {/* Full-bleed puzzle grid: panels meet at 2px seams, no gaps, no padding. */}
@@ -133,8 +143,10 @@ export function AppShell() {
             </div>
           </div>
 
-          {/* Right rail: compressed observability — trace, evaluation, memory */}
-          <div className="col-span-12 grid gap-[2px] bg-[var(--ht-line-strong)] lg:col-span-3 lg:min-h-0 lg:grid-rows-3 lg:[&>*]:min-h-0 lg:[&>*]:h-full">
+          {/* Right rail: always three boxes. Trace sizes to its content (shows
+              every agent, no slack), evaluation grows to absorb the remaining
+              height, Redis stays compact. */}
+          <div className="col-span-12 grid gap-[2px] bg-[var(--ht-line-strong)] lg:col-span-3 lg:min-h-0 lg:grid-rows-[auto_1fr_auto] lg:[&>*]:min-h-0 lg:[&>*]:h-full">
             <ErrorBoundary name="Agent trace"><AgentTraceTimeline /></ErrorBoundary>
             <ErrorBoundary name="Evaluation"><EvalScorecard /></ErrorBoundary>
             <ErrorBoundary name="Redis case memory"><RedisStatsRail /></ErrorBoundary>

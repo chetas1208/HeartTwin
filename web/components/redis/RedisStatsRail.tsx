@@ -16,9 +16,6 @@ import {
   Lightning,
   HardDrives,
   Broadcast,
-  GitBranch,
-  Lightbulb,
-  Coins,
   type Icon,
 } from "@phosphor-icons/react";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/Panel";
@@ -111,22 +108,12 @@ export function RedisStatsRail() {
     "trace_stream_length",
     "xlen",
   );
-  const knnMatches = pickNumber(
-    stats,
-    "case_memory.similar_cases",
-    "similar_cases",
-    "knn_matches",
-    "case_memory_matches",
-    "vector_matches",
-  );
-  const cacheHits = pickNumber(stats, "semantic_cache.hits", "cache_hits", "semantic_cache_hits");
-  const tokens = pickNumber(stats, "tokens.total", "total_tokens", "token_count", "tokens");
-  const costUsd = pickNumber(stats, "cost.usd", "cost_usd", "total_cost_usd", "usd");
-
+  // Two compact highlights that prove Redis is load-bearing: persisted case
+  // state and the live trace stream (XADD entries).
   const rows: Array<{ icon: Icon; label: string; value: string; live: boolean }> = [
     {
       icon: HardDrives,
-      label: "Case state",
+      label: "Cases stored",
       value: fmt(caseDocs ?? (caseId ? 1 : null)),
       live: caseDocs !== null || Boolean(caseId),
     },
@@ -135,15 +122,6 @@ export function RedisStatsRail() {
       label: "Stream entries",
       value: fmt(streamEntries ?? (traceCount > 0 ? traceCount : null)),
       live: (streamEntries ?? traceCount) > 0,
-    },
-    { icon: GitBranch, label: "Case-memory KNN", value: fmt(knnMatches), live: (knnMatches ?? 0) > 0 },
-    { icon: Lightbulb, label: "Cache hits", value: fmt(cacheHits), live: (cacheHits ?? 0) > 0 },
-    { icon: Coins, label: "Tokens", value: fmt(tokens), live: (tokens ?? 0) > 0 },
-    {
-      icon: Coins,
-      label: "Cost",
-      value: fmt(costUsd, costUsd !== null && costUsd < 1 ? 3 : 2, "$"),
-      live: (costUsd ?? 0) > 0,
     },
   ];
 

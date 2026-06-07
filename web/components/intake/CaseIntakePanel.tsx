@@ -444,8 +444,8 @@ export function CaseIntakePanel() {
       <div className="ht-hairline" />
 
       <PanelBody className="flex flex-col gap-3 pt-3">
-        {/* Imaging & files (collapsible) ----------------------------------- */}
-        <details open className="group border border-[var(--ht-line)] bg-surface-2/40">
+        {/* Imaging & files (collapsible; collapsed so notes leads) --------- */}
+        <details className="group border border-[var(--ht-line)] bg-surface-2/40">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
             <FileArrowUp weight="regular" className="size-4 text-muted" />
             Imaging &amp; files
@@ -576,7 +576,9 @@ export function CaseIntakePanel() {
           </div>
         </details>
 
-        {/* Patient notes (open by default) --------------------------------- */}
+        {/* Patient notes — open by default with a large notes field. Sections
+            expand below in normal flow; the panel scrolls if content exceeds it
+            (no flex-grow, so opening a section never overlaps others). */}
         <details open className="group border border-[var(--ht-line)] bg-surface-2/40">
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[0.8rem] font-medium text-ink-2 marker:hidden">
             <Sparkle weight="regular" className="size-4 text-muted" />
@@ -589,9 +591,8 @@ export function CaseIntakePanel() {
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={3}
               placeholder="Symptoms, history, and context. The AI reads vitals from your files and notes."
-              className="w-full resize-none border border-[var(--ht-line)] bg-surface-2 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
+              className="min-h-[40vh] w-full resize-y border border-[var(--ht-line)] bg-surface-2 px-2.5 py-2 text-[0.8rem] text-ink placeholder:text-faint focus-visible:border-[var(--ht-signal-line)]"
             />
             <div className="flex items-center gap-2">
               <button
