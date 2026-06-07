@@ -34,9 +34,11 @@ from python.hearttwin.orchestrator import (
     run_recovery_pipeline,
 )
 from python.hearttwin.safety import (
+    CORE_SAFETY_PHRASE,
     DISCLAIMER,
     SafetyViolation,
     check_request_safety,
+    strip_allowed_safety_phrases,
     validate_simulation_outputs,
 )
 from python.hearttwin.schemas import (
@@ -46,11 +48,8 @@ from python.hearttwin.schemas import (
     RecoveryConfig,
 )
 from python.hearttwin.tools.storage import get_case, store_case
+from python.hearttwin.tools.model_config import get_copilot_model
 from python.hearttwin.tools.weave_trace import get_latest_run, get_trace_sink, weave_status
-
-# Model used for case Q&A reasoning. Numeric facts are supplied by the
-# deterministic pipeline; the model only explains the already-computed state.
-_ANSWER_MODEL = os.environ.get("HEARTTWIN_COPILOT_MODEL", "gpt-4o")
 
 # Phrases that, if emitted by the model, indicate it crossed the clinical
 # boundary. Used as a defense-in-depth check on top of check_request_safety,
@@ -289,8 +288,7 @@ async def simulate_recovery(
             "evaluation_passed": bool(eval_report.get("passed")),
             "weave": _run_weave(case.case_id),
             "simulation_note": (
-                "All recovery trajectories are simulated educational estimates. "
-                "Not for diagnosis or treatment decisions."
+                f"{CORE_SAFETY_PHRASE} All recovery trajectories are simulated estimates."
             ),
         }
     )
@@ -304,6 +302,7 @@ async def simulate_recovery(
 _SYSTEM_PROMPT = (
     "You are HeartTwin Lab's read-only explainer for an EDUCATIONAL cardiac "
     "simulation. You are NOT a clinician and this is NOT a medical device.\n\n"
+    f"Required safety phrase: {CORE_SAFETY_PHRASE}\n\n"
     "You will receive a JSON snapshot of an already-computed simulated cardiac "
     "state. Answer the user's question using ONLY the numbers present in that "
     "snapshot. Do not perform new calculations, do not invent values, and do "
@@ -317,7 +316,7 @@ _SYSTEM_PROMPT = (
     "  * Always speak about the SIMULATION ('the simulated ejection fraction "
     "is ...'), never about a real patient's health.\n\n"
     "If the question asks for diagnosis, treatment, or any clinical advice, "
-    "refuse and explain this is an educational simulation only. Keep answers "
+    f"refuse using this exact phrase: {CORE_SAFETY_PHRASE} Keep answers "
     "concise (1-4 sentences) and grounded in the snapshot numbers."
 )
 
@@ -380,10 +379,13 @@ def _check_output_safety(answer: str) -> None:
       1. The shared request-pattern matcher (diagnosis/treatment/medication/...).
       2. Output-specific red-flag phrases the request matcher would miss.
     """
-    # Reuse the canonical blocked-pattern matcher on the model output.
-    check_request_safety(answer)
+    checked_answer = strip_allowed_safety_phrases(answer)
 
-    lowered = answer.lower()
+    # Reuse the canonical blocked-pattern matcher on model output after
+    # removing approved disclaimer wording.
+    check_request_safety(checked_answer)
+
+    lowered = checked_answer.lower()
     for phrase in _OUTPUT_RED_FLAGS:
         if phrase in lowered:
             raise SafetyViolation(
@@ -435,6 +437,7 @@ async def answer_case_question(case_id: str, question: str) -> dict[str, Any]:
 
     import openai
 
+    answer_model = get_copilot_model()
     client = openai.AsyncOpenAI(api_key=api_key)
 
     trace_sink = get_trace_sink()
@@ -452,7 +455,7 @@ async def answer_case_question(case_id: str, question: str) -> dict[str, Any]:
 
     try:
         response = await client.chat.completions.create(
-            model=_ANSWER_MODEL,
+            model=answer_model,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
@@ -475,7 +478,7 @@ async def answer_case_question(case_id: str, question: str) -> dict[str, Any]:
     trace_sink.log_tool_call(
         run_id,
         "openai_chat_completion",
-        inputs={"model": _ANSWER_MODEL, "question": question.strip()},
+        inputs={"model": answer_model, "question": question.strip()},
         outputs={"answer_len": len(answer)},
     )
     trace_sink.finish_run(run_id, "success", {"answer_len": len(answer)})
@@ -486,7 +489,7 @@ async def answer_case_question(case_id: str, question: str) -> dict[str, Any]:
             "case_id": case.case_id,
             "question": question.strip(),
             "answer": answer,
-            "model": _ANSWER_MODEL,
+            "model": answer_model,
             "grounded_on": sorted(snapshot.keys()),
             "weave": _run_weave(case.case_id),
         }

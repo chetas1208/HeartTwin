@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from python.hearttwin.schemas import AgentResponse, AgentStatus, CardiacTwinState, SafetyLevel
+from python.hearttwin.safety import CORE_SAFETY_PHRASE
 from python.hearttwin.tools.scoring import evaluate_run
 from python.hearttwin.tools.weave_trace import TraceContext
 
@@ -110,8 +111,7 @@ async def run_evaluator_agent(
             r.agent: r.status.value for r in all_agent_responses
         },
         "simulation_note": (
-            "All outputs are simulated educational estimates. "
-            "No clinical interpretation should be made from these results."
+            f"{CORE_SAFETY_PHRASE} Evaluated outputs are simulated estimates."
         ),
     }
 

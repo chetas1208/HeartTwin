@@ -18,6 +18,7 @@ from python.hearttwin.schemas import (
     MeasuredValue,
     ValueSource,
 )
+from python.hearttwin.safety import CORE_SAFETY_PHRASE
 from python.hearttwin.tools.ecg_features import analyze_waveform
 from python.hearttwin.tools.weave_trace import TraceContext
 
@@ -159,7 +160,9 @@ async def run_electrophysiology_agent(
             "arrhythmia_instability_score": ep.arrhythmia_instability_score.value if ep.arrhythmia_instability_score else None,
             "conduction_delay_score": ep.conduction_delay_score.value if ep.conduction_delay_score else None,
             "r_peak_confidence": ep.r_peak_confidence,
-            "simulation_note": "Rhythm labels are simulation descriptors, not clinical diagnoses",
+            "simulation_note": (
+                f"{CORE_SAFETY_PHRASE} Rhythm labels are simulation descriptors."
+            ),
         },
         warnings=warnings,
         confidence=round(confidence, 3),

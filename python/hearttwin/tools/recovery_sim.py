@@ -12,6 +12,8 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional
 
+from python.hearttwin.safety import CORE_SAFETY_PHRASE
+
 
 @dataclass
 class DayState:
@@ -42,8 +44,7 @@ class RecoveryScenarioResult:
     summary_metrics: dict
     warnings: list[str] = field(default_factory=list)
     simulation_note: str = (
-        "This is a simulated educational recovery trajectory. "
-        "Not for diagnosis or treatment decisions."
+        f"{CORE_SAFETY_PHRASE} This is a simulated recovery trajectory."
     )
 
 

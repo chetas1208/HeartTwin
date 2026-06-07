@@ -25,7 +25,13 @@ from python.hearttwin.orchestrator import (
     run_recovery_pipeline,
     run_self_improvement_pipeline,
 )
-from python.hearttwin.safety import DISCLAIMER, SafetyViolation, add_disclaimer, check_request_safety
+from python.hearttwin.safety import (
+    CORE_SAFETY_PHRASE,
+    DISCLAIMER,
+    SafetyViolation,
+    add_disclaimer,
+    check_request_safety,
+)
 from python.hearttwin.schemas import (
     CardiacTwinState,
     CaseRecord,
@@ -469,8 +475,7 @@ async def simulate_recovery_endpoint(case_id: str, request: SimulateRecoveryRequ
         "stage_results": [r.model_dump() for r in stage_responses],
         "weave": weave_status(run_id),
         "simulation_note": (
-            "All recovery trajectories are simulated educational estimates. "
-            "Not for diagnosis or treatment decisions."
+            f"{CORE_SAFETY_PHRASE} All recovery trajectories are simulated estimates."
         ),
     })
 

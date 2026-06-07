@@ -32,7 +32,11 @@ export default defineNuxtConfig({
     upstashRedisRestToken: process.env.UPSTASH_REDIS_REST_TOKEN,
     public: {
       appName: process.env.NUXT_PUBLIC_APP_NAME || 'HeartTwin Lab',
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api/v1',
+      apiBase:
+        process.env.NUXT_PUBLIC_API_BASE ||
+        process.env.NEXT_PUBLIC_API_BASE ||
+        process.env.API_BASE ||
+        '/api/v1',
     },
   },
 

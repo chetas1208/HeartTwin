@@ -19,6 +19,7 @@ from python.hearttwin.schemas import (
     OperatingMode,
     ValueSource,
 )
+from python.hearttwin.safety import CORE_SAFETY_PHRASE
 from python.hearttwin.tools.cardiac_state import (
     compute_afterload_index,
     compute_arterial_compliance_index,
@@ -195,8 +196,8 @@ async def run_hemodynamics_agent(
             "filling_pressure_index": round(filling_press, 4),
         },
         "simulation_note": (
-            "All hemodynamic values are simulated estimates using deterministic mathematical models. "
-            "Not for clinical interpretation."
+            f"{CORE_SAFETY_PHRASE} Hemodynamic values are simulated estimates "
+            "from deterministic mathematical models."
         ),
     }
 

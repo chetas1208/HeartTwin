@@ -13,6 +13,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
+from python.hearttwin.safety import DISCLAIMER
+
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -312,11 +314,7 @@ class CaseRecord(BaseModel):
     simulation_result: Optional[dict[str, Any]] = None
     recovery_scenarios: Optional[list[dict[str, Any]]] = None
     status: str = "created"
-    safety_disclaimer: str = (
-        "SIMULATION ONLY — This is an educational cardiac digital twin. "
-        "It does not constitute medical advice, diagnosis, or treatment. "
-        "All values are simulated or estimated. Consult a qualified clinician for medical decisions."
-    )
+    safety_disclaimer: str = DISCLAIMER
 
 
 # ---------------------------------------------------------------------------

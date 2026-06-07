@@ -12,6 +12,9 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from python.hearttwin.safety import CORE_SAFETY_PHRASE
+from python.hearttwin.tools.model_config import get_vision_model
+
 
 @dataclass
 class ImageExtractionResult:
@@ -24,8 +27,7 @@ class ImageExtractionResult:
     method: str = "vision_api"
 
 
-_VISION_PROMPT = """You are analyzing a medical image for educational cardiac simulation purposes only.
-This is NOT for diagnosis or clinical use.
+_VISION_PROMPT = f"""{CORE_SAFETY_PHRASE}
 
 Extract ONLY values that are CLEARLY and EXPLICITLY visible in the image.
 Return a JSON object with ONLY the fields you can see with confidence >= 0.7.
@@ -45,13 +47,13 @@ Possible fields (include only those clearly visible):
 - waveform_type: "ecg_12lead", "ecg_rhythm_strip", "echo", "mri", "other"
 
 For each field include:
-{
+{{
   "value": <number or string>,
   "confidence": <0.0-1.0, how certain you are this is correct>,
   "evidence": "<brief quote or description of what you saw>"
-}
+}}
 
-IMPORTANT: Return {} if nothing is clearly readable. Never guess.
+IMPORTANT: Return {{}} if nothing is clearly readable. Never guess.
 """
 
 
@@ -83,10 +85,11 @@ async def extract_from_image(
 
         b64 = base64.b64encode(file_bytes).decode("utf-8")
         mime = content_type or "image/png"
+        model = get_vision_model()
 
         client = openai.AsyncOpenAI(api_key=api_key)
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model=model,
             messages=[
                 {
                     "role": "user",
@@ -122,7 +125,7 @@ async def extract_from_image(
                     "confidence": confidence,
                     "source_file_id": file_id,
                     "evidence": data.get("raw_evidence", data.get("evidence", ""))[:200],
-                    "method": "vision_api_gpt4o",
+                    "method": "vision_api_openai",
                 }
 
         return ImageExtractionResult(
@@ -132,7 +135,7 @@ async def extract_from_image(
             extracted_values=extracted,
             raw_response=raw[:2000],
             warnings=warnings,
-            method="vision_api_gpt4o",
+            method="vision_api_openai",
         )
 
     except Exception as e:

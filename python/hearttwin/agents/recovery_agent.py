@@ -15,12 +15,12 @@ from python.hearttwin.schemas import (
     CardiacTwinState,
     RecoveryConfig,
 )
+from python.hearttwin.safety import CORE_SAFETY_PHRASE
 from python.hearttwin.tools.recovery_sim import RecoveryScenarioResult, build_default_scenarios, simulate_recovery
 from python.hearttwin.tools.weave_trace import TraceContext
 
 _SIMULATION_DISCLAIMER = (
-    "All recovery trajectories are educational simulations only. "
-    "They are bounded model scenarios and not for diagnosis or treatment decisions."
+    f"{CORE_SAFETY_PHRASE} Recovery trajectories are bounded model scenarios."
 )
 
 

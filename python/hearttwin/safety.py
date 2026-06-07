@@ -9,11 +9,17 @@ from __future__ import annotations
 import re
 from typing import Any
 
+CORE_SAFETY_PHRASE = "Educational cardiac simulation only. Not for diagnosis or treatment decisions."
+
 DISCLAIMER = (
-    "EDUCATIONAL SIMULATION ONLY — HeartTwin Lab is not a medical device, does not provide "
-    "medical advice, does not diagnose, and does not recommend treatment. All outputs are "
-    "simulated educational estimates. Consult a qualified clinician for any health decisions."
+    f"{CORE_SAFETY_PHRASE} SIMULATION ONLY. HeartTwin Lab is not a medical device, "
+    "does not provide medical advice, and all outputs are simulated educational estimates."
 )
+
+_ALLOWED_SAFETY_PHRASES = [
+    CORE_SAFETY_PHRASE,
+    "not for diagnosis or treatment decisions",
+]
 
 _BLOCKED_PATTERNS = [
     r"\b(diagnos|diagnosis|diagnose)\b",
@@ -62,6 +68,14 @@ def enforce_simulation_language(text: str) -> str:
     return text
 
 
+def strip_allowed_safety_phrases(text: str) -> str:
+    """Remove approved disclaimer wording before blocked-language checks."""
+    safe_text = text
+    for phrase in _ALLOWED_SAFETY_PHRASES:
+        safe_text = re.sub(re.escape(phrase), "", safe_text, flags=re.IGNORECASE)
+    return safe_text
+
+
 def redact_pii(text: str) -> str:
     """Redact obvious PII patterns from trace outputs."""
     text = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "[SSN-REDACTED]", text)
@@ -86,14 +100,15 @@ def add_disclaimer(response: dict[str, Any]) -> dict[str, Any]:
 def validate_simulation_outputs(outputs: dict[str, Any]) -> list[str]:
     """Return list of safety warnings for a set of simulation outputs."""
     warnings: list[str] = []
+    output_text = strip_allowed_safety_phrases(str(outputs)).lower()
 
-    if "diagnosis" in str(outputs).lower():
+    if "diagnosis" in output_text:
         warnings.append("Output contains the word 'diagnosis' — must use 'simulated pattern'")
-    if "treatment" in str(outputs).lower():
+    if "treatment" in output_text:
         warnings.append("Output contains the word 'treatment' — must use 'simulated scenario'")
-    if "healed" in str(outputs).lower():
+    if "healed" in output_text:
         warnings.append("Output contains the word 'healed' — must use 'simulated recovery trajectory'")
-    if "prescribe" in str(outputs).lower():
+    if "prescribe" in output_text:
         warnings.append("Output contains 'prescribe' — blocked in simulation context")
 
     return warnings
