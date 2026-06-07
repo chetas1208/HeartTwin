@@ -258,6 +258,13 @@ async def run_validator_agent(
     )
 
     legacy_validated = _to_legacy_validated_fields(validated)
+    # Pass through raw non-scalar artifacts (e.g. __ecg_waveform__) that are not
+    # validated as scalar measurements but are required downstream (the
+    # electrophysiology agent reads the waveform from validated_fields).
+    if isinstance(extracted_fields, dict):
+        for raw_key, raw_payload in extracted_fields.items():
+            if raw_key.startswith("__") and raw_key not in legacy_validated:
+                legacy_validated[raw_key] = raw_payload
     structured_output = validator_output.model_dump(mode="json")
 
     latency_ms = round((time.time() - t0) * 1000, 1)

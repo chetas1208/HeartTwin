@@ -78,7 +78,7 @@ ENV_SPEC: list[EnvVarSpec] = [
                description="W&B entity (optional)."),
     EnvVarSpec("WANDB_PROJECT", "weave", default="hearttwin-weavehacks",
                description="W&B project; should be hearttwin-weavehacks."),
-    EnvVarSpec("NUXT_PUBLIC_WEAVE_PROJECT_URL", "weave",
+    EnvVarSpec("NEXT_PUBLIC_WEAVE_PROJECT_URL", "weave",
                description="Public Weave project URL (safe to expose)."),
     # --- Storage ---
     EnvVarSpec("BLOB_READ_WRITE_TOKEN", "storage", secret=True,
@@ -89,12 +89,10 @@ ENV_SPEC: list[EnvVarSpec] = [
     EnvVarSpec("UPSTASH_REDIS_REST_TOKEN", "redis", secret=True,
                description="Upstash REST token; missing → in-memory fallback."),
     # --- API base ---
-    EnvVarSpec("NUXT_PUBLIC_API_BASE", "api", default="/api/v1",
-               description="Primary public API base used by the Nuxt frontend."),
+    EnvVarSpec("NEXT_PUBLIC_API_BASE", "api", default="/api/v1",
+               description="Primary public API base used by the Next.js frontend."),
     EnvVarSpec("API_BASE", "api", default="/api/v1",
                description="Server-side API base."),
-    EnvVarSpec("NEXT_PUBLIC_API_BASE", "api",
-               description="Backward-compat fallback only; never primary."),
     # --- VISTA-3D ---
     EnvVarSpec("VISTA3D_API_BASE", "vista3d",
                description="VISTA-3D endpoint base URL (optional)."),
@@ -105,7 +103,7 @@ ENV_SPEC: list[EnvVarSpec] = [
     EnvVarSpec("VISTA3D_ENABLED", "vista3d", default="false", validator=_is_bool,
                description="Whether VISTA-3D is enabled (boolean)."),
     # --- App ---
-    EnvVarSpec("NUXT_PUBLIC_APP_NAME", "app", default="HeartTwin Lab",
+    EnvVarSpec("NEXT_PUBLIC_APP_NAME", "app", default="HeartTwin Lab",
                description="Public app name."),
     EnvVarSpec("HEARTTWIN_SAFETY_MODE", "app", default="strict",
                description="Safety mode; expected strict."),

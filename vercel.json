@@ -1,8 +1,7 @@
 {
-  "framework": "nuxtjs",
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "devCommand": "pnpm dev",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo 'HeartTwin backend (Python serverless) - no Node build'",
+  "installCommand": "echo 'no Node dependencies at the repo root'",
   "rewrites": [
     {
       "source": "/api/:path*",

@@ -5,8 +5,7 @@ Covers:
 - Missing optional envs produce warnings, not crashes.
 - /api/v1/config exposes no secrets.
 - Model routing defaults exist.
-- Nuxt API base uses /api/v1.
-- NEXT_PUBLIC_API_BASE does not override NUXT_PUBLIC_API_BASE.
+- Public API base uses /api/v1 and honors NEXT_PUBLIC_API_BASE.
 - Boolean/numeric env validators behave.
 - Deploy-mode validation (local-dev / vercel-preview / vercel-production).
 """
@@ -55,10 +54,10 @@ _DOCUMENTED = {
     "OPENAI_MODEL_ELECTROPHYSIOLOGY", "OPENAI_MODEL_HEMODYNAMICS",
     "OPENAI_MODEL_RECOVERY", "OPENAI_MODEL_EVALUATOR", "OPENAI_MODEL_FAST",
     "OPENAI_EMBEDDING_MODEL", "WANDB_API_KEY", "WANDB_ENTITY", "WANDB_PROJECT",
-    "NUXT_PUBLIC_WEAVE_PROJECT_URL", "BLOB_READ_WRITE_TOKEN",
-    "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "NUXT_PUBLIC_API_BASE",
+    "NEXT_PUBLIC_WEAVE_PROJECT_URL", "BLOB_READ_WRITE_TOKEN",
+    "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN",
     "API_BASE", "NEXT_PUBLIC_API_BASE", "VISTA3D_API_BASE", "VISTA3D_API_KEY",
-    "VISTA3D_TIMEOUT_SECONDS", "VISTA3D_ENABLED", "NUXT_PUBLIC_APP_NAME",
+    "VISTA3D_TIMEOUT_SECONDS", "VISTA3D_ENABLED", "NEXT_PUBLIC_APP_NAME",
     "HEARTTWIN_SAFETY_MODE", "HEARTTWIN_TRACE_MODE", "HEARTTWIN_REDIS_MEMORY_ENABLED",
 }
 
@@ -182,24 +181,18 @@ def test_model_routing_defaults_exist() -> None:
 def test_validate_environment_api_base_defaults_to_v1() -> None:
     from python.hearttwin.tools.env_config import validate_environment
 
-    with env(NUXT_PUBLIC_API_BASE=None, API_BASE=None):
+    with env(NEXT_PUBLIC_API_BASE=None, API_BASE=None):
         snap = validate_environment()
         assert snap["api"]["public_base"] == "/api/v1"
 
 
-def test_nuxt_public_api_base_is_preferred_in_nuxt_config() -> None:
-    """nuxt.config.ts must prefer NUXT_PUBLIC_API_BASE over NEXT_PUBLIC_API_BASE."""
-    import pathlib
+def test_next_public_api_base_is_honored() -> None:
+    """The public API base comes from NEXT_PUBLIC_API_BASE (the Next.js frontend)."""
+    from python.hearttwin.tools.env_config import validate_environment
 
-    root = pathlib.Path(__file__).resolve().parents[3]
-    cfg = (root / "nuxt.config.ts").read_text()
-    # NUXT_PUBLIC_API_BASE should appear before NEXT_PUBLIC_API_BASE in the public.apiBase chain.
-    idx_nuxt = cfg.find("NUXT_PUBLIC_API_BASE")
-    idx_next = cfg.find("NEXT_PUBLIC_API_BASE")
-    assert idx_nuxt != -1, "NUXT_PUBLIC_API_BASE not referenced in nuxt.config.ts"
-    assert idx_next == -1 or idx_nuxt < idx_next, (
-        "NEXT_PUBLIC_API_BASE must only be a fallback after NUXT_PUBLIC_API_BASE"
-    )
+    with env(NEXT_PUBLIC_API_BASE="https://api.example.com/api/v1", API_BASE=None):
+        snap = validate_environment()
+        assert snap["api"]["public_base"] == "https://api.example.com/api/v1"
 
 
 # ---------------------------------------------------------------------------

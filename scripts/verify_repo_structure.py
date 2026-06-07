@@ -23,7 +23,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 REQUIRED_FILES = [
     "package.json",
     "vercel.json",
-    "nuxt.config.ts",
+    "web/package.json",
+    "web/app/api/copilotkit/route.ts",
     "api/index.py",
     "python/hearttwin/api.py",
     "python/hearttwin/orchestrator.py",
@@ -75,7 +76,7 @@ EXPECTED_FIXTURES = [
     "fixtures/hearttwin/README.md",
 ]
 
-EXPECTED_DIRS = ["app", "api", "python", "tests", "fixtures", "scripts", "docs"]
+EXPECTED_DIRS = ["web", "api", "python", "fixtures", "scripts", "docs"]
 
 
 def _exists(rel: str) -> bool:

@@ -11,12 +11,15 @@ Pipeline per spec:
 
 from __future__ import annotations
 
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from typing import Any
 
 from copilotkit.integrations.fastapi import add_fastapi_endpoint
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from python.hearttwin.copilot import build_sdk
 from python.hearttwin.orchestrator import (
@@ -439,6 +442,104 @@ async def get_trace(case_id: str) -> dict:
         },
         "safety_disclaimer": DISCLAIMER,
     }
+
+
+# ---------------------------------------------------------------------------
+# Live trace stream (SSE)
+# ---------------------------------------------------------------------------
+#
+# The web frontend (useTraceStream) opens an EventSource here to render the
+# agent pipeline live. HeartTwin keeps traces in-process via
+# weave_trace.get_traces (the same source as GET /trace), so the stream polls
+# that list and emits each new entry. Every event is sent under the SSE event
+# name "trace"; the real kind travels in the JSON payload so a single browser
+# listener receives all of them. There is no polling fallback — this endpoint
+# is the single live transport.
+
+_TRACE_STREAM_POLL_SECONDS = 1.0
+
+
+@app.get("/api/v1/cases/{case_id}/trace/stream")
+async def stream_trace(
+    case_id: str, request: Request, last_id: str | None = None
+) -> StreamingResponse:
+    case_data = await get_case(case_id)
+    if not case_data:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+
+    resume_from = last_id or request.headers.get("Last-Event-ID")
+    return StreamingResponse(
+        _trace_stream_events(case_id, request, resume_from),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+async def _trace_stream_events(
+    case_id: str,
+    request: Request,
+    last_id: str | None,
+) -> AsyncIterator[str]:
+    yield _sse_event(
+        event_id=f"setup:{case_id}",
+        kind="stream_setup",
+        payload={
+            "case_id": case_id,
+            "source": "local",
+            "last_id": last_id,
+            "poll_seconds": _TRACE_STREAM_POLL_SECONDS,
+            "safety_disclaimer": DISCLAIMER,
+        },
+    )
+
+    next_index = _local_resume_index(last_id)
+    while not await request.is_disconnected():
+        traces = get_traces(case_id)
+        while next_index < len(traces):
+            trace = traces[next_index]
+            kind = str(
+                trace.get("kind")
+                or trace.get("event")
+                or trace.get("agent")
+                or "trace"
+            )
+            yield _sse_event(
+                event_id=f"local-{next_index + 1}",
+                kind=kind,
+                payload={
+                    "case_id": case_id,
+                    "source": "local",
+                    "local_index": next_index,
+                    "payload": trace,
+                    "safety_disclaimer": DISCLAIMER,
+                },
+            )
+            next_index += 1
+        # Comment line doubles as a keep-alive ping; EventSource ignores it.
+        yield ": ping\n\n"
+        await asyncio.sleep(_TRACE_STREAM_POLL_SECONDS)
+
+
+def _sse_event(event_id: str, kind: str, payload: dict[str, Any]) -> str:
+    # A single stable SSE event name ("trace") so the browser EventSource
+    # delivers every event to one listener regardless of kind. The real kind
+    # (and original event name) travel in the data payload.
+    data = {"kind": kind, "event": kind, **payload}
+    body = json.dumps(data, default=str, sort_keys=True)
+    return f"id: {event_id}\nevent: trace\ndata: {body}\n\n"
+
+
+def _local_resume_index(last_id: str | None) -> int:
+    if not last_id or not last_id.startswith("local-"):
+        return 0
+    try:
+        return max(0, int(last_id.removeprefix("local-")))
+    except ValueError:
+        return 0
 
 
 @app.get("/api/v1/cases/{case_id}/harness")

@@ -114,9 +114,8 @@ def validate_environment() -> dict[str, Any]:
             "mode": "external_endpoint" if vista_enabled and vista_configured else "disabled",
         },
         "api": {
-            "public_base": os.environ.get("NUXT_PUBLIC_API_BASE", "/api/v1"),
+            "public_base": os.environ.get("NEXT_PUBLIC_API_BASE", "/api/v1"),
             "server_base": os.environ.get("API_BASE", "/api/v1"),
-            "next_public_api_base_fallback_configured": bool(os.environ.get("NEXT_PUBLIC_API_BASE")),
         },
         "app": {
             "safety_mode": os.environ.get("HEARTTWIN_SAFETY_MODE", DEFAULT_SAFETY_MODE),

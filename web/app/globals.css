@@ -1,0 +1,465 @@
+@import "tailwindcss";
+
+/*
+  DESIGN READ: Product/observability console for a multi-agent cardiac digital
+  twin, audience = hackathon judges + clinicians, language = dark clinical-
+  instrument meets agent-trace telemetry, custom palette.
+
+  This is a PRODUCT register (impeccable/reference/product.md): design serves the
+  task. Earned familiarity over novelty. Restrained color: a near-black clinical
+  lacquer ground, ONE systolic crimson for primary actions / vital pulse, ONE
+  signal cyan for agents / data / trace, an ECG green for recovery, a single
+  amber for warnings. All color in OKLCH. Body text verified >= 4.5:1.
+
+  Typography: Geist (geometric sans, one family for UI) + Geist Mono (telemetry,
+  ids, numerics). Loaded via next/font in layout.tsx; tokens reference the CSS
+  variables those exports inject (--font-geist-sans / --font-geist-mono).
+
+  Tokens are mapped to Tailwind utilities through @theme inline so siblings use
+  utilities (bg-surface-2, text-ink, text-accent, ...) and NEVER hardcode color.
+*/
+
+:root {
+  color-scheme: light;
+
+  /* ---- Surfaces: light clinical paper, cool neutral ---- */
+  --ht-bg: oklch(0.965 0.003 250);          /* page ground / seams behind panels */
+  --ht-surface-1: oklch(0.995 0.001 250);   /* primary panel (white) */
+  --ht-surface-2: oklch(0.975 0.003 250);   /* raised panel / toolbar */
+  --ht-surface-3: oklch(0.945 0.004 250);   /* hover / selected fill */
+  --ht-overlay: oklch(0.3 0.02 250 / 0.42); /* scrim behind modals */
+
+  /* ---- Hairlines / puzzle seams ---- */
+  --ht-line: oklch(0.88 0.005 250);         /* default divider */
+  --ht-line-strong: oklch(0.74 0.008 250);  /* emphasized edge / thick seam */
+
+  /* ---- Text ramp (verified contrast against white) ---- */
+  --ht-ink: oklch(0.26 0.012 250);          /* primary text, ~13:1 */
+  --ht-ink-2: oklch(0.42 0.013 250);        /* secondary text, ~8:1 */
+  --ht-muted: oklch(0.54 0.012 250);        /* muted/labels, ~5:1 */
+  --ht-faint: oklch(0.66 0.01 250);         /* disabled/ghost, decorative only */
+
+  /* ---- Primary accent: systolic crimson, darkened for light ground ---- */
+  --ht-accent: oklch(0.54 0.19 22);
+  --ht-accent-bright: oklch(0.51 0.2 24);
+  --ht-accent-dim: oklch(0.64 0.14 22);
+  --ht-accent-ink: oklch(0.99 0.01 20);     /* text on accent fill */
+  --ht-accent-soft: oklch(0.54 0.19 22 / 0.10);
+  --ht-accent-line: oklch(0.54 0.19 22 / 0.32);
+
+  /* ---- Secondary: signal teal for agents, data, trace ---- */
+  --ht-signal: oklch(0.52 0.1 220);
+  --ht-signal-bright: oklch(0.48 0.11 222);
+  --ht-signal-dim: oklch(0.64 0.07 220);
+  --ht-signal-soft: oklch(0.52 0.1 220 / 0.10);
+  --ht-signal-line: oklch(0.52 0.1 220 / 0.3);
+
+  /* ---- ECG / recovery green ---- */
+  --ht-ecg: oklch(0.52 0.13 150);
+  --ht-ecg-soft: oklch(0.52 0.13 150 / 0.12);
+  --ht-ecg-line: oklch(0.52 0.13 150 / 0.32);
+
+  /* ---- Single amber for warnings ---- */
+  --ht-warn: oklch(0.6 0.13 70);
+  --ht-warn-soft: oklch(0.6 0.13 70 / 0.13);
+  --ht-warn-line: oklch(0.6 0.13 70 / 0.34);
+
+  /* ---- Status semantics (map to the four hues above) ---- */
+  --ht-ok: var(--ht-ecg);
+  --ht-running: var(--ht-signal);
+  --ht-danger: var(--ht-accent-bright);
+
+  /* ---- Radius scale (capped per codex over-round ban: cards <= 16px) ---- */
+  /* Flat, clinical: square corners everywhere (pill kept only for status dots). */
+  --ht-r-xs: 0px;
+  --ht-r-sm: 0px;
+  --ht-r-md: 0px;
+  --ht-r-lg: 0px;
+  --ht-r-pill: 999px;
+
+  /* ---- Spacing rhythm ---- */
+  --ht-space-1: 0.25rem;
+  --ht-space-2: 0.5rem;
+  --ht-space-3: 0.75rem;
+  --ht-space-4: 1rem;
+  --ht-space-5: 1.5rem;
+  --ht-space-6: 2rem;
+  --ht-space-7: 3rem;
+
+  /* ---- Z-index scale (semantic, never arbitrary 9999) ---- */
+  --ht-z-base: 0;
+  --ht-z-raised: 10;
+  --ht-z-sticky: 100;
+  --ht-z-dock: 200;
+  --ht-z-backdrop: 300;
+  --ht-z-modal: 400;
+  --ht-z-toast: 500;
+  --ht-z-tooltip: 600;
+
+  /* ---- Motion tokens: ease-out expo family, no bounce/elastic ---- */
+  --ht-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ht-ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ht-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ht-dur-fast: 150ms;
+  --ht-dur-mid: 220ms;
+  --ht-dur-slow: 360ms;
+
+  /* ---- Elevation (tinted to bg hue, single defined shadow, no ghost-card) ---- */
+  --ht-shadow-panel: none;
+  --ht-shadow-raised: none;
+}
+
+@theme inline {
+  --color-background: var(--ht-bg);
+  --color-foreground: var(--ht-ink);
+
+  --color-surface-1: var(--ht-surface-1);
+  --color-surface-2: var(--ht-surface-2);
+  --color-surface-3: var(--ht-surface-3);
+
+  --color-line: var(--ht-line);
+  --color-line-strong: var(--ht-line-strong);
+
+  --color-ink: var(--ht-ink);
+  --color-ink-2: var(--ht-ink-2);
+  --color-muted: var(--ht-muted);
+  --color-faint: var(--ht-faint);
+
+  --color-accent: var(--ht-accent);
+  --color-accent-bright: var(--ht-accent-bright);
+  --color-accent-dim: var(--ht-accent-dim);
+  --color-accent-ink: var(--ht-accent-ink);
+
+  --color-signal: var(--ht-signal);
+  --color-signal-bright: var(--ht-signal-bright);
+  --color-signal-dim: var(--ht-signal-dim);
+
+  --color-ecg: var(--ht-ecg);
+  --color-warn: var(--ht-warn);
+
+  --color-ok: var(--ht-ok);
+  --color-running: var(--ht-running);
+  --color-danger: var(--ht-danger);
+
+  --radius-xs: var(--ht-r-xs);
+  --radius-sm: var(--ht-r-sm);
+  --radius-md: var(--ht-r-md);
+  --radius-lg: var(--ht-r-lg);
+
+  /* One typeface for the whole console (Inter). "Mono" keeps the same family
+     and just locks tabular figures so numeric columns still align. */
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-ui), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+
+  --ease-out-expo: var(--ht-ease-out-expo);
+  --ease-out-quart: var(--ht-ease-out-quart);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--ht-bg);
+  color: var(--ht-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv01", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.006em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--ht-accent-soft);
+  color: var(--ht-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ht-signal);
+  outline-offset: 2px;
+  border-radius: var(--ht-r-xs);
+}
+
+/* Thin, instrument-style scrollbars (not a reinvented affordance, just tuned) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ht-line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ht-line-strong);
+  border-radius: var(--ht-r-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reusable primitives (utility classes). Keep small; do NOT over-card. */
+/* ------------------------------------------------------------------ */
+
+/* Panels are borderless filled boxes; the grid's 2px seams ARE the borders, so
+   adjacent panels meet like a puzzle with no doubled edges. */
+.ht-panel {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: var(--ht-surface-1);
+}
+
+.ht-panel-raised {
+  border: 0;
+  border-radius: 0;
+  background: var(--ht-surface-2);
+}
+
+.ht-hairline {
+  height: 1px;
+  width: 100%;
+  background: var(--ht-line);
+  border: 0;
+}
+
+/* Section eyebrow used sparingly as a deliberate panel-header system, not on
+   every section (impeccable eyebrow restraint). */
+.ht-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ht-muted);
+}
+
+.ht-panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ht-ink);
+}
+
+/* ---- Buttons: single shape vocabulary, full state set ---- */
+.ht-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: var(--ht-r-md);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 560;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--ht-dur-fast) var(--ht-ease-standard),
+    border-color var(--ht-dur-fast) var(--ht-ease-standard),
+    color var(--ht-dur-fast) var(--ht-ease-standard),
+    transform var(--ht-dur-fast) var(--ht-ease-out-quart);
+}
+.ht-btn:active {
+  transform: translateY(0.5px) scale(0.985);
+}
+.ht-btn:disabled,
+.ht-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ht-btn-primary {
+  background: var(--ht-accent);
+  color: var(--ht-accent-ink);
+  border-color: var(--ht-accent-line);
+}
+.ht-btn-primary:hover {
+  background: var(--ht-accent-bright);
+}
+
+.ht-btn-secondary {
+  background: var(--ht-surface-2);
+  color: var(--ht-ink);
+  border-color: var(--ht-line-strong);
+}
+.ht-btn-secondary:hover {
+  background: var(--ht-surface-3);
+  border-color: var(--ht-signal-line);
+}
+
+.ht-btn-ghost {
+  background: transparent;
+  color: var(--ht-ink-2);
+  border-color: transparent;
+}
+.ht-btn-ghost:hover {
+  background: var(--ht-surface-2);
+  color: var(--ht-ink);
+}
+
+/* ---- Status chip: hue switched by data-status, full semantic set ---- */
+.ht-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.5rem;
+  padding: 0 0.5rem 0 0.4375rem;
+  border-radius: var(--ht-r-pill);
+  border: 1px solid var(--ht-line-strong);
+  background: var(--ht-surface-2);
+  color: var(--ht-ink-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.ht-chip-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: var(--ht-r-pill);
+  background: currentColor;
+  flex: none;
+}
+
+.ht-chip[data-status="idle"] {
+  color: var(--ht-muted);
+}
+.ht-chip[data-status="running"] {
+  color: var(--ht-signal-bright);
+  border-color: var(--ht-signal-line);
+  background: var(--ht-signal-soft);
+}
+.ht-chip[data-status="success"],
+.ht-chip[data-status="ok"],
+.ht-chip[data-status="connected"] {
+  color: var(--ht-ecg);
+  border-color: var(--ht-ecg-line);
+  background: var(--ht-ecg-soft);
+}
+.ht-chip[data-status="warning"],
+.ht-chip[data-status="degraded"],
+.ht-chip[data-status="caution"] {
+  color: var(--ht-warn);
+  border-color: var(--ht-warn-line);
+  background: var(--ht-warn-soft);
+}
+.ht-chip[data-status="failed"],
+.ht-chip[data-status="error"],
+.ht-chip[data-status="blocked"] {
+  color: var(--ht-accent-bright);
+  border-color: var(--ht-accent-line);
+  background: var(--ht-accent-soft);
+}
+
+/* ---- Live pulse dot (status indicator, conveys state not decoration) ---- */
+.ht-pulse {
+  position: relative;
+}
+.ht-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--ht-r-pill);
+  border: 1px solid currentColor;
+  opacity: 0;
+  animation: ht-pulse-ring 2.4s var(--ht-ease-out-expo) infinite;
+}
+@keyframes ht-pulse-ring {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.7);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* ---- Skeleton shimmer for loading states (matches final layout shape) ---- */
+.ht-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--ht-r-sm);
+  background: var(--ht-surface-2);
+}
+.ht-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ht-surface-3),
+    transparent
+  );
+  animation: ht-shimmer 1.6s var(--ht-ease-standard) infinite;
+}
+@keyframes ht-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ---- ECG sweep line, used by empty/loading telemetry placeholders ---- */
+.ht-ecg-sweep {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ht-signal) 50%,
+    transparent
+  );
+  background-size: 220% 100%;
+  animation: ht-sweep 2.8s var(--ht-ease-standard) infinite;
+}
+@keyframes ht-sweep {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+/* Numeric / telemetry text helper */
+.ht-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reduced motion: crossfade / instant, never fully static UI dead.   */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
